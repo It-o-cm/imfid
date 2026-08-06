@@ -3,6 +3,8 @@ package com.intermarche.fidelity.domain;
 import jakarta.persistence.*;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.time.LocalDate;
 import java.util.Objects;
 
 /**
@@ -60,6 +62,31 @@ public class EarnTraceLine extends BaseEntity {
      */
     @Column(name = "earn_amount", nullable = false, precision = 19, scale = 2)
     public BigDecimal earnAmount;
+
+    /**
+     * Sums the eligible base credited to a card by a rule over a fiscal date range —
+     * the running purchase base of a {@code CHALLENGE_EARN} rule over its period (§12,
+     * §15). Reads from the ingested traces only, never the projection (§30.2). The
+     * range bounds are inclusive.
+     *
+     * @param cardNumber The card number.
+     * @param ruleCode   The rule code.
+     * @param from       First fiscal date of the range (inclusive).
+     * @param to         Last fiscal date of the range (inclusive).
+     * @return The cumulated base, euro at scale 2, never null (zero when none).
+     */
+    public static BigDecimal sumBaseForRule(String cardNumber, String ruleCode, LocalDate from, LocalDate to) {
+        BigDecimal sum = getEntityManager().createQuery(
+                        "select coalesce(sum(l.baseAmount), 0) from EarnTraceLine l "
+                                + "where l.ruleCode = :r and l.trace.cardNumber = :c "
+                                + "and l.trace.fiscalDate >= :f and l.trace.fiscalDate <= :to",
+                        BigDecimal.class)
+                .setParameter("r", ruleCode).setParameter("c", cardNumber)
+                .setParameter("f", from).setParameter("to", to)
+                .getSingleResult();
+        BigDecimal total = sum != null ? sum : BigDecimal.ZERO;
+        return total.setScale(2, RoundingMode.HALF_UP);
+    }
 
     /**
      * Calculates a checksum from the line's business fields.

@@ -63,7 +63,7 @@ public class EarnTrace extends BaseEntity {
      * The card number the ticket carried; copied out for filtering and visit
      * derivation.
      */
-    @Column(name = "card_number", length = 13)
+    @Column(name = "card_number", length = 40)
     public String cardNumber;
 
     /**

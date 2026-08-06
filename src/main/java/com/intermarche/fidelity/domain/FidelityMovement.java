@@ -8,7 +8,9 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -151,6 +153,60 @@ public class FidelityMovement extends BaseEntity {
             return find("ticketRef = ?1 and type = ?2 and ruleCode is null", ticketRef, type).firstResult();
         }
         return find("ticketRef = ?1 and type = ?2 and ruleCode = ?3", ticketRef, type, ruleCode).firstResult();
+    }
+
+    /**
+     * Sums the EARN credited to an account per rule code over a fiscal date range —
+     * the per-rule and (aggregated by the caller) per-community cap cumulatives, and
+     * the once-per-period uniqueness source (§15, I5). Only EARN counts toward caps:
+     * ADJUSTMENT and REFUND_CREDIT are out of every cap (§29.5, §32.1). The range
+     * bounds are inclusive.
+     *
+     * @param account The account.
+     * @param from    First fiscal date of the range (inclusive).
+     * @param to      Last fiscal date of the range (inclusive).
+     * @return A map of rule code to earned euro at scale 2, never null.
+     */
+    public static Map<String, BigDecimal> monthlyEarnByRule(FidelityAccount account, LocalDate from, LocalDate to) {
+        Map<String, BigDecimal> map = new LinkedHashMap<>();
+        List<Object[]> rows = getEntityManager().createQuery(
+                        "select m.ruleCode, coalesce(sum(m.amount), 0) from FidelityMovement m "
+                                + "where m.account = :a and m.type = :t and m.movementDate >= :f and m.movementDate <= :to "
+                                + "group by m.ruleCode", Object[].class)
+                .setParameter("a", account).setParameter("t", MovementType.EARN)
+                .setParameter("f", from).setParameter("to", to)
+                .getResultList();
+        for (Object[] row : rows) {
+            String code = (String) row[0];
+            if (code == null) {
+                continue;
+            }
+            BigDecimal sum = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            map.put(code, sum.setScale(2, RoundingMode.HALF_UP));
+        }
+        return map;
+    }
+
+    /**
+     * Sums the total EARN credited to an account over a fiscal date range — the global
+     * cap cumulative (400 €/month, §15, I5). Only EARN counts (§29.5). The range bounds
+     * are inclusive.
+     *
+     * @param account The account.
+     * @param from    First fiscal date of the range (inclusive).
+     * @param to      Last fiscal date of the range (inclusive).
+     * @return The earned euro at scale 2, never null (zero when none).
+     */
+    public static BigDecimal monthlyEarnTotal(FidelityAccount account, LocalDate from, LocalDate to) {
+        BigDecimal sum = getEntityManager().createQuery(
+                        "select coalesce(sum(m.amount), 0) from FidelityMovement m "
+                                + "where m.account = :a and m.type = :t and m.movementDate >= :f and m.movementDate <= :to",
+                        BigDecimal.class)
+                .setParameter("a", account).setParameter("t", MovementType.EARN)
+                .setParameter("f", from).setParameter("to", to)
+                .getSingleResult();
+        BigDecimal total = sum != null ? sum : BigDecimal.ZERO;
+        return total.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**

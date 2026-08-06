@@ -1,6 +1,7 @@
 package com.intermarche.fidelity.rule;
 
 import java.util.List;
+import java.util.Set;
 
 /**
  * The runtime interpreter of one {@link com.intermarche.fidelity.domain.FidelityRule},
@@ -43,5 +44,20 @@ public interface EarnRuleApplier {
      */
     default boolean isProducer() {
         return true;
+    }
+
+    /**
+     * Returns the ids of the basket lines this rule's scopes cover for the purpose of
+     * removing them from every earn assiette and founding the burnable base (§15,
+     * §22.3) — only {@code PROGRAM_EXCLUSION} overrides this; every producer returns
+     * the empty set. Coverage ignores commercial consumption: a covered line leaves
+     * every assiette and is subtracted from {@code totalPrice} even if an offer
+     * already priced it.
+     *
+     * @param lines The valued basket lines; a null list yields an empty set.
+     * @return The covered line ids, never null.
+     */
+    default Set<String> excludedLineIds(List<ValuedLine> lines) {
+        return Set.of();
     }
 }

@@ -274,6 +274,33 @@ public class FidelityRule extends BaseEntity {
     // --------------------------------------------------
 
     /**
+     * Returns the community code carried by the specification of a community-gated
+     * rule ({@code COMMUNITY_EARN}, {@code MONTHLY_DATE_EARN}, §12), or null when the
+     * rule is not community-gated or the specification is absent/malformed (§31.2).
+     * <p>
+     * Read by the card-context build and by the community-cap arbitration (§15, I5) so
+     * the mapping rule &rarr; community stays sourced from the specification, never
+     * duplicated.
+     *
+     * @return The community code, or null.
+     */
+    public String communityCodeFromSpec() {
+        if (specification == null || specification.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode node = MAPPER.readTree(specification).get("communityCode");
+            if (node != null && node.isTextual()) {
+                String value = node.asText();
+                return value == null || value.isBlank() ? null : value.trim();
+            }
+        } catch (JsonProcessingException e) {
+            return null;
+        }
+        return null;
+    }
+
+    /**
      * Indicates whether the rule is in force at the given instant: active and
      * inside its validity window (validFrom inclusive, validTo exclusive).
      *

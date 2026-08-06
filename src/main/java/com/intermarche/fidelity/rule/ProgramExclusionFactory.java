@@ -67,6 +67,17 @@ class ProgramExclusionApplier extends AbstractEarnRuleApplier {
     }
 
     /**
+     * Exposes the covered line ids to the orchestration through the SPI (§15, §22.3).
+     *
+     * @param lines The valued basket lines; a null list yields an empty set.
+     * @return The covered line ids, never null.
+     */
+    @Override
+    public Set<String> excludedLineIds(List<ValuedLine> lines) {
+        return coveredLineIds(lines);
+    }
+
+    /**
      * A program exclusion is a filter, not a producer (§12, §15).
      *
      * @return false.
