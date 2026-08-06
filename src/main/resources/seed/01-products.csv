@@ -1,0 +1,10 @@
+ean|name|description|brand|referenceWeight|referenceVolume|productType|unitName|active
+3300000000001|Pommes Golden|Pommes fraîches bio||1.000|2.500|WEIGHT|kg|true
+3300000000002|Lait UHT 1L|Lait demi-écrémé Pâturages|Pâturages|1.000|1.000|UNIT|L|true
+3300000000004|Café Grains 500g|Café moulu arabica||0.500|1.250|UNIT|kg|true
+3300000000007|Eau Minérale 1.5L|Eau de source (marque socle)|Paquito|1.500|1.500|UNIT|L|true
+3300000000013|Biscuits Chocolat 200g|Paquet de biscuits||0.200|0.500|UNIT|kg|true
+3300000000014|Chips Classiques 150g|Chips (rayon F&L pour la démo)||0.150|0.400|UNIT|kg|true
+3300000000020|Poulet Rôti 1.2kg|Poulet fermier||1.200|3.000|WEIGHT|kg|true
+3300000000031|Poêle Antiadhésive 28cm|Poêle||0.800|0.000|UNIT|pcs|true
+3300000000032|Casserole Inox 20cm|Casserole||1.200|0.000|UNIT|pcs|true

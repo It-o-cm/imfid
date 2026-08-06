@@ -3,10 +3,8 @@ package com.intermarche.fidelity.imports;
 import com.intermarche.fidelity.domain.AccountStatus;
 import com.intermarche.fidelity.domain.FidelityAccount;
 import com.intermarche.fidelity.domain.FidelityProgramSetting;
-import com.intermarche.fidelity.domain.AppUser;
 import io.quarkus.hibernate.orm.panache.Panache;
 import io.smallrye.common.annotation.RunOnVirtualThread;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -40,7 +38,6 @@ import java.util.Set;
 @Path("/fidelity/accounts/import")
 @ApplicationScoped
 @RunOnVirtualThread
-@RolesAllowed(AppUser.ROLE_FID_ADMIN)
 public class FidelityAccountCsvResource extends ImporterCsvResource {
 
     /**

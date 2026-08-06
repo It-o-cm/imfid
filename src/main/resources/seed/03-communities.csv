@@ -1,0 +1,5 @@
+code|label|monthlyCap|enrollmentCap|renewalStartMonth|renewalEndMonth|eligibilityCriteria
+BABIES|Intermarché Bébés|30.00||||Personne s'occupant d'un enfant de moins de 2 ans ou à naître
+LARGE_FAMILIES|Intermarché Familles Nombreuses|20.00||||3 enfants nés et plus dont un de moins de 18 ans
+STUDENTS|Intermarché Étudiants|20.00|100000|10|10|Étudiants de 18 à 28 ans révolus
+SMALL_BUDGETS|Intermarché Petits Budgets|20.00|130000|2|2|Quotient familial inférieur ou égal à 900 €

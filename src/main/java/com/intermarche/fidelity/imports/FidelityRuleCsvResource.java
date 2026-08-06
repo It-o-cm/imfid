@@ -2,10 +2,8 @@ package com.intermarche.fidelity.imports;
 
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.rule.EarnRuleRegistry;
-import com.intermarche.fidelity.domain.AppUser;
 import io.quarkus.hibernate.orm.panache.Panache;
 import io.smallrye.common.annotation.RunOnVirtualThread;
-import jakarta.annotation.security.RolesAllowed;
 import jakarta.enterprise.context.ApplicationScoped;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
@@ -45,7 +43,6 @@ import java.util.Set;
 @Path("/fidelity/rules/import")
 @ApplicationScoped
 @RunOnVirtualThread
-@RolesAllowed(AppUser.ROLE_FID_ADMIN)
 public class FidelityRuleCsvResource extends ImporterCsvResource {
 
     /**

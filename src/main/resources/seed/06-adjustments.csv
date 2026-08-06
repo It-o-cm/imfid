@@ -1,0 +1,5 @@
+reference|cardNumber|amount|movementDate|reason
+SEED-001|LOYALTY-DEMO-001|50.00|2026-06-01|Préparation démo (solde initial)
+SEED-002|LOYALTY-DEMO-002|12.50|2026-06-01|Préparation démo (solde initial)
+SEED-003|LOYALTY-DEMO-003|20.00|2026-06-01|Préparation démo (solde initial)
+SEED-004|LOYALTY-DEMO-004|5.00|2026-07-20|Préparation démo (cumul avant activation)
