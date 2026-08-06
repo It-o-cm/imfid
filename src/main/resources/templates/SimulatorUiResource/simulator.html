@@ -1,0 +1,75 @@
+{#include ui/layout}
+{#title}Simulateur — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Simulateur</h1>
+        <p class="page-sub">Coller un couple /valuation, choisir une carte et une date forcée (§26.3) — earn règle par règle, sans effet de bord (§30.2).</p>
+    </div>
+</div>
+
+<form method="post" action="/ui/simulator">
+    <div class="card">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">Carte</span>
+                <input class="input-control" type="text" name="card" value="{view.card}"></label>
+            <label class="field"><span class="field-label">Date d'évaluation (forcée)</span>
+                <input class="input-control" type="datetime-local" name="date" value="{view.date}"></label>
+        </div>
+        <label class="field sim-paste" style="margin-top:12px">
+            <span class="field-label">Réponse /valuation (JSON)</span>
+            <textarea name="response" placeholder="Coller le JSON de la réponse /valuation…">{view.response}</textarea>
+        </label>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Simuler</button></div>
+    </div>
+</form>
+
+{#if view.hasError}
+<div class="alert alert-error">{view.error}</div>
+{/if}
+
+{#if view.hasResult}
+<div class="card">
+    <div class="card-title-row">
+        <h2 class="card-title">Résultat</h2>
+        <span class="sim-total">{view.result.total} €</span>
+    </div>
+    {#if view.hasNote}<p class="field-hint">{view.note}</p>{/if}
+    <p class="field-hint">Base décagnottable (burnableBase) : <strong>{view.result.burnableBase} €</strong></p>
+
+    <h3 class="schema-scope-title">Entrées earn (règle par règle)</h3>
+    {#if view.result.entries.isEmpty}
+    <p class="placeholder-note">Aucune entrée earn pour ce panier / cette carte / cette date.</p>
+    {#else}
+    <table class="data-table">
+        <thead><tr><th>Règle</th><th>Libellé</th><th>Assiette</th><th>Montant</th><th>Lignes</th></tr></thead>
+        <tbody>
+        {#for e in view.result.entries}
+        <tr><td class="link-strong">{e.ruleCode}</td><td>{e.label}</td><td>{e.baseAmount} €</td><td>{e.amount} €</td><td class="col-muted">{e.lineIds}</td></tr>
+        {/for}
+        </tbody>
+    </table>
+    {/if}
+
+    {#if !view.result.capsApplied.isEmpty}
+    <h3 class="schema-scope-title">Plafonds appliqués (capsApplied)</h3>
+    <table class="data-table">
+        <thead><tr><th>Scope</th><th>Plafond</th><th>Tronqué de</th></tr></thead>
+        <tbody>
+        {#for c in view.result.capsApplied}
+        <tr><td>{c.scope}</td><td>{c.capAmount} €</td><td>{c.truncatedBy} €</td></tr>
+        {/for}
+        </tbody>
+    </table>
+    {/if}
+
+    {#if !view.result.warnings.isEmpty}
+    <h3 class="schema-scope-title">Warnings</h3>
+    <ul class="spec-error-list">
+        {#for w in view.result.warnings}<li>{w.code}{#if w.ean} — {w.ean}{/if} : {w.message}</li>{/for}
+    </ul>
+    {/if}
+</div>
+{/if}
+{/body}
+{/include}

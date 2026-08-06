@@ -1,0 +1,64 @@
+{#include ui/layout}
+{#title}Nouvelle règle — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Nouvelle règle</h1>
+        <p class="page-sub">Formulaire généré du JSON Schema de la factory (§12, §21.3). Bascule Form / JSON toujours disponible.</p>
+    </div>
+    <div class="page-actions"><a class="btn btn-ghost" href="/ui/rules">← Liste</a></div>
+</div>
+
+<script id="rule-schemas" type="application/json">{schemasJson.raw}</script>
+<script id="rule-communities" type="application/json">{communitiesJson.raw}</script>
+{#if source}<script id="rule-spec-initial" type="application/json">{source.raw}</script>{/if}
+
+<form id="rule-form" class="card stacked-form" method="post" action="/ui/rules/create">
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Code <em>*</em></span>
+            <input class="input-control" type="text" name="code" value="{prefillCode}" required></label>
+        <label class="field"><span class="field-label">Type <em>*</em></span>
+            <select class="input-control" id="rule-type" name="type" required>
+                {#for t in types}<option value="{t}">{t}</option>{/for}
+            </select></label>
+        <label class="field"><span class="field-label">Libellé (imprimé sur le ticket) <em>*</em></span>
+            <input class="input-control" type="text" name="label" required></label>
+    </div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Valide depuis <em>*</em></span>
+            <input class="input-control" type="datetime-local" name="validFrom" required></label>
+        <label class="field"><span class="field-label">Valide jusqu'à</span>
+            <input class="input-control" type="datetime-local" name="validTo"></label>
+        <label class="field"><span class="field-label">Priorité</span>
+            <input class="input-control" type="number" name="priority" value="0"></label>
+    </div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Plafond mensuel / carte (€)</span>
+            <div class="input-unit"><input class="input-control" type="number" step="0.01" name="monthlyCapPerCard"><span class="input-suffix">€</span></div></label>
+        <label class="toggle"><input type="checkbox" name="exclusive" value="true">&nbsp;<span class="field-label">Exclusive (consomme ses lignes)</span></label>
+        <label class="toggle"><input type="checkbox" name="active" value="true" checked>&nbsp;<span class="field-label">Active</span></label>
+    </div>
+
+    <div class="card-title-row" style="margin-top:8px">
+        <h2 class="card-title">Spécification</h2>
+        <div class="form-toggle">
+            <button class="btn btn-small" type="button" id="toggle-form">Form</button>
+            <button class="btn btn-small" type="button" id="toggle-json">JSON</button>
+        </div>
+    </div>
+    <div id="schema-form-host" class="schema-form">
+        <div id="schema-fields"></div>
+    </div>
+    <div id="json-host" class="is-hidden">
+        <textarea id="json-editor" class="input-control" rows="12" style="font-family:ui-monospace,monospace"></textarea>
+    </div>
+    <input type="hidden" id="specification" name="specification">
+
+    {#if canWrite}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">Créer la règle</button></div>
+    {/if}
+</form>
+
+<script src="/ui/rules-form.js"></script>
+{/body}
+{/include}

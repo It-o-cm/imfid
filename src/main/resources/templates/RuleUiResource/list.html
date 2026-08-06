@@ -1,0 +1,88 @@
+{#include ui/layout}
+{#title}Règles — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Règles earn</h1>
+        <p class="page-sub">{view.summary}</p>
+    </div>
+    {#if view.canWrite}
+    <div class="page-actions">
+        <a class="btn btn-primary" href="/ui/rules/new">Nouvelle règle</a>
+    </div>
+    {/if}
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<form class="filter-bar" method="get" action="/ui/rules">
+    <input type="hidden" name="sort" value="{view.sort}">
+    <input type="hidden" name="dir" value="{view.direction}">
+    <div class="filter-field">
+        <label class="filter-label">Code</label>
+        <input type="search" name="code" value="{view.filter('code')}">
+    </div>
+    <div class="filter-field">
+        <label class="filter-label">Type</label>
+        <input type="text" name="type" value="{view.filter('type')}" placeholder="BRAND_TIERED_EARN…">
+    </div>
+    <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filtrer</button>
+        {#if view.filtered}<a class="btn btn-ghost" href="/ui/rules">Réinitialiser</a>{/if}
+    </div>
+</form>
+
+{#if view.rows.isEmpty}
+<div class="empty-state">
+    <p>Aucune règle ne correspond au filtre.</p>
+    <p class="empty-hint">Créez une règle, ou importez le domaine FIDELITY_RULES depuis l'écran Imports.</p>
+</div>
+{#else}
+<table class="data-table">
+    <thead>
+    <tr>
+        <th class="{#if view.isSortedOn('code')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('code')}">Code <span class="sort-arrow">{view.sortIndicator('code')}</span></a></th>
+        <th class="{#if view.isSortedOn('type')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('type')}">Type <span class="sort-arrow">{view.sortIndicator('type')}</span></a></th>
+        <th>Libellé</th>
+        <th class="{#if view.isSortedOn('validFrom')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('validFrom')}">Fenêtre <span class="sort-arrow">{view.sortIndicator('validFrom')}</span></a></th>
+        <th class="{#if view.isSortedOn('priority')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('priority')}">Priorité <span class="sort-arrow">{view.sortIndicator('priority')}</span></a></th>
+        <th>État</th>
+        {#if view.canWrite}<th class="col-actions">Actions</th>{/if}
+    </tr>
+    </thead>
+    <tbody>
+    {#for row in view.rows}
+    <tr>
+        <td class="link-strong">{row.code}</td>
+        <td class="col-muted">{row.type}</td>
+        <td>{row.label}</td>
+        <td class="col-muted">{row.validFrom} → {#if row.validTo}{row.validTo}{#else}—{/if}</td>
+        <td>{row.priority}</td>
+        <td><span class="badge {row.badgeClass}">{row.state}</span></td>
+        {#if view.canWrite}
+        <td class="col-actions">
+            <a class="btn btn-small" href="/ui/rules/new?from={row.code}">Dupliquer</a>
+            {#if row.state == 'ACTIVE' || row.state == 'UPCOMING'}
+            <form method="post" action="/ui/rules/{row.code}/close" onsubmit="return confirm('Fermer la règle {row.code} à aujourd\'hui ? Sa spécification deviendra immuable.');">
+                <button class="btn btn-small btn-danger" type="submit">Fermer</button>
+            </form>
+            {/if}
+        </td>
+        {/if}
+    </tr>
+    {/for}
+    </tbody>
+</table>
+
+{#if view.paged}
+<div class="pager">
+    <a class="btn btn-small {#if !view.hasPrevious}is-disabled{/if}" href="{view.pageUrl(view.currentPage - 1)}">‹ Préc.</a>
+    <span class="pager-status">Page {view.currentPage} / {view.pageCount}<span class="pager-range">{view.rangeLabel}</span></span>
+    <a class="btn btn-small {#if !view.hasNext}is-disabled{/if}" href="{view.pageUrl(view.currentPage + 1)}">Suiv. ›</a>
+</div>
+{/if}
+{/if}
+{/body}
+{/include}

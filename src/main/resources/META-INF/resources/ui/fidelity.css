@@ -1,0 +1,100 @@
+/*
+ * imfid domain styles (cards, rules, communities, program, simulator).
+ * Tokens come from base.css; no colour is written in hard here beyond those tokens.
+ */
+
+/* ---------- EAN-13 barcode (§33.1) ---------- */
+.ean13 { display: block; max-width: 100%; background: #fff; }
+
+/* ---------- Schema-driven rule form (§21.3, §23.3) ---------- */
+.schema-form .field-grid { margin-bottom: 8px; }
+
+.schema-scope {
+    border: 1px solid var(--im-line);
+    border-radius: 6px;
+    padding: 14px 16px;
+    background: #fafbfc;
+}
+
+.schema-scope-title {
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    color: var(--im-ink-soft);
+    margin: 10px 0 6px;
+}
+
+.tier-row {
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.tier-row .field { flex: 1 1 auto; }
+
+.day-set { display: flex; flex-wrap: wrap; gap: 10px; }
+.day-set label { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; }
+
+.form-toggle {
+    display: inline-flex;
+    gap: 8px;
+    margin-bottom: 14px;
+}
+
+/* ---------- Program / batches ---------- */
+.batch-card { display: flex; flex-direction: column; gap: 10px; }
+
+.batch-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+
+.batch-report {
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 6px;
+    background: #fafbfc;
+    border: 1px solid var(--im-line);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Simulator (§23.5) ---------- */
+.sim-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+}
+
+@media (max-width: 820px) { .sim-grid { grid-template-columns: 1fr; } }
+
+.sim-paste textarea {
+    width: 100%;
+    min-height: 220px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+    border: 1px solid var(--im-line);
+    border-radius: 6px;
+    padding: 10px;
+    resize: vertical;
+}
+
+.sim-total {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--im-accent);
+}
+
+/* ---------- Imports ---------- */
+.import-drop {
+    padding: 22px;
+    border: 1px dashed var(--im-line);
+    border-radius: var(--radius);
+    background: #fafbfc;
+}
+
+.import-report {
+    margin-top: 12px;
+    white-space: pre-wrap;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 12px;
+}

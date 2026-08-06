@@ -1,0 +1,37 @@
+{#include ui/layout}
+{#title}Communautés — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Communautés</h1>
+        <p class="page-sub">{view.summary}</p>
+    </div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+{#if view.rows.isEmpty}
+<div class="empty-state">
+    <p>Aucune communauté.</p>
+    <p class="empty-hint">Importez le domaine FIDELITY_COMMUNITIES depuis l'écran Imports.</p>
+</div>
+{#else}
+<table class="data-table">
+    <thead><tr><th>Code</th><th>Libellé</th><th>Plafond mensuel</th><th>Membres actifs</th><th>Renouvellement</th></tr></thead>
+    <tbody>
+    {#for row in view.rows}
+    <tr>
+        <td><a class="link-strong" href="/ui/communities/{row.code}">{row.code}</a></td>
+        <td>{row.label}</td>
+        <td>{#if row.monthlyCap}{row.monthlyCap} €{#else}—{/if}</td>
+        <td>{row.activeMembers}</td>
+        <td class="col-muted">{#if row.renewalStartMonth}mois {row.renewalStartMonth}–{row.renewalEndMonth}{#else}—{/if}</td>
+    </tr>
+    {/for}
+    </tbody>
+</table>
+{/if}
+{/body}
+{/include}

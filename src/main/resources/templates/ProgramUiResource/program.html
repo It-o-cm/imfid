@@ -1,0 +1,62 @@
+{#include ui/layout}
+{#title}Programme — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Programme</h1>
+        <p class="page-sub">Paramètres administrables (§25.1) et supervision des batchs (§23.4)</p>
+    </div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Paramètres</h2></div>
+    {#for s in view.settings}
+    <form method="post" action="/ui/program/setting" class="stacked-form" style="margin-bottom:12px">
+        <input type="hidden" name="key" value="{s.key}">
+        <div class="field-grid">
+            <div class="field">
+                <span class="field-label">{s.label}</span>
+                <span class="field-hint">{s.key}</span>
+            </div>
+            <label class="field">
+                <span class="field-label">Valeur</span>
+                <input class="input-control" type="text" name="value" value="{s.value}" {#if !view.canWrite}disabled{/if}>
+            </label>
+            {#if view.canWrite}
+            <div class="field" style="justify-content:flex-end"><button class="btn" type="submit">Enregistrer</button></div>
+            {/if}
+        </div>
+    </form>
+    {/for}
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Batchs</h2></div>
+    {#for b in view.batches}
+    <div class="batch-card" style="border-top:1px solid var(--im-line);padding-top:14px;margin-top:6px">
+        <div class="card-title-row" style="margin-bottom:6px">
+            <strong>{b.type}</strong>
+            <span class="col-muted">{#if b.hasRun}Dernier run : {b.lastRun.runAt} — {b.lastRun.accountsAffected} compte(s), {b.lastRun.totalAmount} €{#else}Jamais exécuté{/if}</span>
+        </div>
+        {#if view.canWrite}
+        <div class="batch-actions">
+            <form method="post" action="/ui/program/batch">
+                <input type="hidden" name="type" value="{b.type}"><input type="hidden" name="dryRun" value="true">
+                <button class="btn" type="submit">Simuler</button>
+            </form>
+            <form method="post" action="/ui/program/batch"
+                  onsubmit="return confirm('Exécuter le batch {b.type} ? Cette opération détruit des avantages de façon définitive.');">
+                <input type="hidden" name="type" value="{b.type}"><input type="hidden" name="dryRun" value="false">
+                <button class="btn btn-danger" type="submit">Exécuter</button>
+            </form>
+        </div>
+        {/if}
+    </div>
+    {/for}
+</div>
+{/body}
+{/include}

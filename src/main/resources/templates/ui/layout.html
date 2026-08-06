@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{#insert title}Fidélité admin{/}</title>
+    <link rel="stylesheet" href="/ui/base.css">
+    <link rel="stylesheet" href="/ui/auth.css">
+    <link rel="stylesheet" href="/ui/fidelity.css">
+</head>
+<body>
+<header class="app-header">
+    <a class="app-brand" href="/ui/cards">
+        <span class="app-brand-mark"></span>
+        <span class="app-brand-text">Fidélité<b>admin</b></span>
+    </a>
+    <nav class="app-nav">
+        <a href="/ui/cards">Cartes</a>
+        <a href="/ui/communities">Communautés</a>
+        <a href="/ui/rules">Règles</a>
+        <a href="/ui/program">Programme</a>
+        <a href="/ui/imports">Imports</a>
+        <a href="/ui/simulator">Simulateur</a>
+    </nav>
+    {#if inject:currentUser.authenticated}
+    <div class="app-identity">
+        <span class="app-identity-name">{inject:currentUser.name}</span>
+        <form method="post" action="/ui/logout" class="app-identity-form">
+            <button class="app-identity-link" type="submit">Déconnexion</button>
+        </form>
+    </div>
+    {/if}
+</header>
+
+<main class="app-main">
+    {#insert body}{/}
+</main>
+
+<footer class="app-footer">
+    <span>Les spécifications de règles sont validées contre le schéma déclaré par le moteur earn (§12).</span>
+</footer>
+<script src="/ui/fidelity.js"></script>
+</body>
+</html>

@@ -334,6 +334,48 @@ public class AdminService {
     }
 
     /**
+     * Replaces the whole membership set of a community from the workbench submission
+     * (§23.2) — the screen is the complete source of truth, so a member absent from the
+     * submission is removed (deletion by omission, §21.3). Enforces the enrollment cap on
+     * the submitted size (§28.4) and ignores an entry whose card is unknown.
+     *
+     * @param communityCode The community code.
+     * @param entries       The complete membership set.
+     * @return The number of memberships persisted.
+     */
+    @Transactional
+    public int replaceMemberships(String communityCode, List<MembershipInput> entries) {
+        FidelityCommunity community = FidelityCommunity.findByCode(communityCode);
+        if (community == null) {
+            throw new AdminException("Unknown community '" + communityCode + "'");
+        }
+        List<MembershipInput> valid = new java.util.ArrayList<>();
+        for (MembershipInput entry : entries) {
+            if (entry != null && entry.card != null && !entry.card.isBlank() && entry.validFrom != null
+                    && FidelityAccount.findByCardNumber(entry.card.trim()) != null) {
+                valid.add(entry);
+            }
+        }
+        if (community.enrollmentCap != null && valid.size() > community.enrollmentCap) {
+            throw new AdminException("Enrollment cap reached for community '" + communityCode
+                    + "' (" + community.enrollmentCap + ", §28.4)");
+        }
+        FidelityMembership.delete("community", community);
+        int count = 0;
+        for (MembershipInput entry : valid) {
+            FidelityAccount account = FidelityAccount.findByCardNumber(entry.card.trim());
+            FidelityMembership membership = new FidelityMembership();
+            membership.account = account;
+            membership.community = community;
+            membership.validFrom = entry.validFrom;
+            membership.validTo = entry.validTo;
+            membership.persist();
+            count++;
+        }
+        return count;
+    }
+
+    /**
      * Upserts a card activation over a period (§14, §24.3): e-coupon activation, engaged
      * challenge, completed mission.
      *

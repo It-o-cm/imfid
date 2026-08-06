@@ -1,0 +1,96 @@
+{#include ui/layout}
+{#title}Cartes — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Cartes</h1>
+        <p class="page-sub">{view.summary}</p>
+    </div>
+    {#if view.canWrite}
+    <div class="page-actions">
+        <form method="post" action="/ui/cards/create" class="page-actions">
+            <select class="input-control" name="status" style="width:auto">
+                <option value="ACTIVE">ACTIVE</option>
+                <option value="PENDING_ACTIVATION">PENDING_ACTIVATION</option>
+            </select>
+            <button class="btn btn-primary" type="submit">Créer une carte</button>
+        </form>
+    </div>
+    {/if}
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<form class="filter-bar" method="get" action="/ui/cards">
+    <input type="hidden" name="sort" value="{view.sort}">
+    <input type="hidden" name="dir" value="{view.direction}">
+    <div class="filter-field">
+        <label class="filter-label">Numéro</label>
+        <input type="search" name="number" value="{view.filter('number')}" placeholder="Fragment de numéro">
+    </div>
+    <div class="filter-field">
+        <label class="filter-label">Statut</label>
+        <select name="status">
+            <option value="">Tous</option>
+            <option value="ACTIVE" {#if view.filter('status') == 'ACTIVE'}selected{/if}>ACTIVE</option>
+            <option value="PENDING_ACTIVATION" {#if view.filter('status') == 'PENDING_ACTIVATION'}selected{/if}>PENDING_ACTIVATION</option>
+            <option value="RESILIATED" {#if view.filter('status') == 'RESILIATED'}selected{/if}>RESILIATED</option>
+        </select>
+    </div>
+    <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filtrer</button>
+        {#if view.filtered}<a class="btn btn-ghost" href="/ui/cards">Réinitialiser</a>{/if}
+    </div>
+</form>
+
+{#if view.rows.isEmpty}
+<div class="empty-state">
+    <p>Aucune carte ne correspond au filtre.</p>
+    <p class="empty-hint">Créez une carte, ou importez le domaine FIDELITY_ACCOUNTS depuis l'écran Imports.</p>
+</div>
+{#else}
+<table class="data-table">
+    <thead>
+    <tr>
+        <th class="{#if view.isSortedOn('cardNumber')}is-sorted{/if}">
+            <a class="col-sort" href="{view.sortUrl('cardNumber')}">Numéro <span class="sort-arrow">{view.sortIndicator('cardNumber')}</span></a>
+        </th>
+        <th class="{#if view.isSortedOn('status')}is-sorted{/if}">
+            <a class="col-sort" href="{view.sortUrl('status')}">Statut <span class="sort-arrow">{view.sortIndicator('status')}</span></a>
+        </th>
+        <th class="{#if view.isSortedOn('balance')}is-sorted{/if}">
+            <a class="col-sort" href="{view.sortUrl('balance')}">Solde <span class="sort-arrow">{view.sortIndicator('balance')}</span></a>
+        </th>
+        <th class="{#if view.isSortedOn('lastUsedAt')}is-sorted{/if}">
+            <a class="col-sort" href="{view.sortUrl('lastUsedAt')}">Dernière utilisation <span class="sort-arrow">{view.sortIndicator('lastUsedAt')}</span></a>
+        </th>
+        <th>Visites du mois</th>
+    </tr>
+    </thead>
+    <tbody>
+    {#for row in view.rows}
+    <tr>
+        <td><a class="link-strong" href="/ui/cards/{row.cardNumber}">{row.cardNumber}</a></td>
+        <td><span class="badge {row.badgeClass}">{row.status}</span></td>
+        <td>{row.balance} €</td>
+        <td class="col-muted">{#if row.lastUsedAt}{row.lastUsedAt}{#else}—{/if}</td>
+        <td>{row.monthVisits}</td>
+    </tr>
+    {/for}
+    </tbody>
+</table>
+
+{#if view.paged}
+<div class="pager">
+    <a class="btn btn-small {#if !view.hasPrevious}is-disabled{/if}" href="{view.pageUrl(1)}">« Première</a>
+    <a class="btn btn-small {#if !view.hasPrevious}is-disabled{/if}" href="{view.pageUrl(view.currentPage - 1)}">‹ Préc.</a>
+    <span class="pager-status">Page {view.currentPage} / {view.pageCount}<span class="pager-range">{view.rangeLabel}</span></span>
+    <a class="btn btn-small {#if !view.hasNext}is-disabled{/if}" href="{view.pageUrl(view.currentPage + 1)}">Suiv. ›</a>
+    <a class="btn btn-small {#if !view.hasNext}is-disabled{/if}" href="{view.pageUrl(view.pageCount)}">Dernière »</a>
+</div>
+{/if}
+{/if}
+{/body}
+{/include}

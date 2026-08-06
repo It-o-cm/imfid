@@ -1,0 +1,46 @@
+{#include ui/layout}
+{#title}Imports — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Imports</h1>
+        <p class="page-sub">Import CSV en masse, fallback étagé 1000→100→10→1, optimisation par checksum (§18)</p>
+    </div>
+</div>
+
+{#if notice}
+<div class="alert {#if noticeOk}alert-ok{#else}alert-error{/if}">{notice}</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Déposer un fichier CSV</h2></div>
+    {#if canWrite}
+    <form class="import-drop" method="post" action="/ui/imports/run" enctype="multipart/form-data">
+        <div class="field-grid">
+            <label class="field">
+                <span class="field-label">Domaine</span>
+                <select class="input-control" name="domain">
+                    <option value="PRODUCTS">PRODUCTS (référentiel produits)</option>
+                    <option value="PRODUCT_FAMILIES">PRODUCT_FAMILIES</option>
+                    <option value="FIDELITY_RULES">FIDELITY_RULES</option>
+                    <option value="FIDELITY_COMMUNITIES">FIDELITY_COMMUNITIES</option>
+                    <option value="FIDELITY_ACCOUNTS">FIDELITY_ACCOUNTS</option>
+                    <option value="MEMBERSHIPS">MEMBERSHIPS</option>
+                    <option value="FIDELITY_ADJUSTMENTS">FIDELITY_ADJUSTMENTS</option>
+                    <option value="FIDELITY_ACTIVATIONS">FIDELITY_ACTIVATIONS</option>
+                    <option value="FIDELITY_VISITS">FIDELITY_VISITS</option>
+                </select>
+            </label>
+            <label class="field">
+                <span class="field-label">Fichier (pipe-delimited)</span>
+                <input class="input-control" type="file" name="file" accept=".csv,.txt" required>
+            </label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Importer</button></div>
+    </form>
+    {#else}
+    <p class="placeholder-note">Droit fid-admin requis pour importer.</p>
+    {/if}
+</div>
+{/body}
+{/include}

@@ -1,0 +1,84 @@
+{#include ui/layout}
+{#title}Communauté {community.code} — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>{community.label}</h1>
+        <p class="page-sub">{community.code} — plafond {#if community.monthlyCap}{community.monthlyCap} €{#else}—{/if}, plafond d'inscriptions {#if community.enrollmentCap}{community.enrollmentCap}{#else}illimité{/if}</p>
+    </div>
+    <div class="page-actions"><a class="btn btn-ghost" href="/ui/communities">← Liste</a></div>
+</div>
+
+{#if notice}
+<div class="alert {#if noticeOk}alert-ok{#else}alert-error{/if}">{notice}</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Paramètres</h2></div>
+    <div class="field-grid">
+        <div class="field"><span class="field-label">Éligibilité</span><span class="field-hint">{community.eligibilityCriteria ?: '—'}</span></div>
+        <div class="field"><span class="field-label">Fenêtre de renouvellement</span><span>{#if community.renewalStartMonth}mois {community.renewalStartMonth} à {community.renewalEndMonth}{#else}—{/if}</span></div>
+    </div>
+    <p class="field-hint">Les paramètres de communauté s'administrent par import (§18).</p>
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Appartenances (atelier d'édition directe)</h2></div>
+    <script id="members-initial" type="application/json">{membersJson.raw}</script>
+    <form id="members-form" method="post" action="/ui/communities/{community.code}/memberships">
+        <table class="data-table" id="members-table">
+            <thead><tr><th>Carte</th><th>Depuis</th><th>Jusqu'à</th>{#if canWrite}<th class="col-actions"></th>{/if}</tr></thead>
+            <tbody id="members-body"></tbody>
+        </table>
+        {#if canWrite}
+        <div class="form-actions" style="margin-top:14px">
+            <button class="btn" type="button" id="add-member">+ Ajouter une carte</button>
+            <button class="btn btn-primary" type="submit">Enregistrer la structure</button>
+        </div>
+        <p class="field-hint">L'écran est la source complète de vérité : une carte retirée de la liste est supprimée à l'enregistrement (§21.3).</p>
+        <input type="hidden" name="members" id="members-json">
+        {/if}
+    </form>
+</div>
+
+<script>
+(function () {
+    var initial = JSON.parse(document.getElementById('members-initial').textContent || '[]');
+    var body = document.getElementById('members-body');
+    var canWrite = {canWrite};
+    function row(m) {
+        var tr = document.createElement('tr');
+        function cell(type, value) {
+            var td = document.createElement('td');
+            var inp = document.createElement('input');
+            inp.className = 'input-control'; inp.type = type; inp.value = value || '';
+            inp.disabled = !canWrite;
+            td.appendChild(inp); tr.appendChild(td); return inp;
+        }
+        var card = cell('text', m.card);
+        var from = cell('date', m.validFrom);
+        var to = cell('date', m.validTo);
+        if (canWrite) {
+            var td = document.createElement('td'); td.className = 'col-actions';
+            var rm = document.createElement('button'); rm.type = 'button'; rm.className = 'btn btn-small btn-danger'; rm.textContent = 'Retirer';
+            rm.onclick = function () { body.removeChild(tr); };
+            td.appendChild(rm); tr.appendChild(td);
+        }
+        tr._read = function () { return { card: card.value.trim(), validFrom: from.value || null, validTo: to.value || null }; };
+        body.appendChild(tr);
+    }
+    initial.forEach(row);
+    var add = document.getElementById('add-member');
+    if (add) { add.onclick = function () { row({}); }; }
+    var form = document.getElementById('members-form');
+    if (form && canWrite) {
+        form.addEventListener('submit', function () {
+            var members = Array.prototype.map.call(body.children, function (tr) { return tr._read(); })
+                .filter(function (m) { return m.card; });
+            document.getElementById('members-json').value = JSON.stringify(members);
+        });
+    }
+})();
+</script>
+{/body}
+{/include}

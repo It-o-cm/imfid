@@ -1,0 +1,156 @@
+{#include ui/layout}
+{#title}Carte {view.summary.cardNumber} — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Carte {view.summary.cardNumber}</h1>
+        <p class="page-sub"><span class="badge {#if view.summary.status == 'ACTIVE'}badge-ok{#else if view.summary.status == 'RESILIATED'}badge-error{#else}badge-off{/if}">{view.summary.status}</span> — solde {view.summary.balance} €, disponible {view.summary.availableBalance} €</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/ui/cards">← Liste</a>
+    </div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Code-barres</h2></div>
+    <svg class="ean13" data-ean="{view.summary.cardNumber}" role="img" aria-label="Code-barres {view.summary.cardNumber}"></svg>
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Compteurs du mois</h2></div>
+    <div class="field-grid">
+        <div class="field"><span class="field-label">Visites</span><span>{view.summary.monthVisits}</span></div>
+        {#for cap in view.summary.monthlyCaps}
+        <div class="field"><span class="field-label">Plafond {cap.scope}</span><span>{cap.used} € / {cap.cap} €</span></div>
+        {/for}
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Réservation active</h2></div>
+    {#if view.reservation}
+    <div class="field-grid">
+        <div class="field"><span class="field-label">Montant</span><span>{view.reservation.amount} €</span></div>
+        <div class="field"><span class="field-label">Ticket</span><span>{view.reservation.ticketRef ?: '—'}</span></div>
+        <div class="field"><span class="field-label">Expiration du bail</span><span>{view.reservation.expiresAt}</span></div>
+    </div>
+    {#else}
+    <p class="placeholder-note">Aucune réservation à bail active sur cette carte.</p>
+    {/if}
+</div>
+
+{#if view.canWrite}
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Actions</h2></div>
+    <form method="post" action="/ui/cards/{view.summary.cardNumber}/adjust" class="stacked-form">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">Montant de l'ajustement <em>*</em></span>
+                <div class="input-unit"><input class="input-control" type="number" step="0.01" name="amount" required><span class="input-suffix">€</span></div></label>
+            <label class="field"><span class="field-label">Motif <em>*</em></span>
+                <input class="input-control" type="text" name="reason" required placeholder="Motif obligatoire (§32.1)"></label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Ajuster (ADJUSTMENT)</button></div>
+    </form>
+    <div class="form-actions" style="border-top:1px solid var(--im-line);padding-top:16px;margin-top:8px">
+        <form method="post" action="/ui/cards/{view.summary.cardNumber}/transfer"
+              onsubmit="return confirm('Transférer la carte {view.summary.cardNumber} (solde {view.summary.balance} €) vers une nouvelle carte ? L\'ancienne carte sera résiliée.');">
+            <button class="btn" type="submit">Transférer (perte/vol)</button>
+        </form>
+        <form method="post" action="/ui/cards/{view.summary.cardNumber}/resiliate"
+              onsubmit="return confirm('Résilier la carte {view.summary.cardNumber} (solde {view.summary.balance} €) ? Le solde ne bougera plus jamais.');">
+            <button class="btn btn-danger" type="submit">Résilier</button>
+        </form>
+    </div>
+</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Appartenances aux communautés</h2></div>
+    {#if view.summary.memberships.isEmpty}
+    <p class="placeholder-note">Aucune appartenance.</p>
+    {#else}
+    <table class="data-table">
+        <thead><tr><th>Communauté</th><th>Depuis</th><th>Jusqu'à</th></tr></thead>
+        <tbody>
+        {#for m in view.summary.memberships}
+        <tr><td>{m.community}</td><td>{m.validFrom}</td><td>{#if m.validTo}{m.validTo}{#else}—{/if}</td></tr>
+        {/for}
+        </tbody>
+    </table>
+    {/if}
+    {#if view.canWrite}
+    <form method="post" action="/ui/cards/{view.summary.cardNumber}/membership" class="stacked-form" style="margin-top:14px">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">Communauté</span>
+                <select class="input-control" name="community">
+                    {#for c in view.communities}<option value="{c.code}">{c.code} — {c.label}</option>{/for}
+                </select></label>
+            <label class="field"><span class="field-label">Depuis <em>*</em></span><input class="input-control" type="date" name="validFrom" required></label>
+            <label class="field"><span class="field-label">Jusqu'à</span><input class="input-control" type="date" name="validTo"></label>
+        </div>
+        <div class="form-actions"><button class="btn" type="submit">Enregistrer l'appartenance</button></div>
+    </form>
+    {/if}
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Activations</h2></div>
+    {#if view.activations.isEmpty}
+    <p class="placeholder-note">Aucune activation (e-coupon, défi) sur cette carte.</p>
+    {#else}
+    <table class="data-table">
+        <thead><tr><th>Règle</th><th>Période</th><th>Mission</th></tr></thead>
+        <tbody>
+        {#for a in view.activations}
+        <tr><td>{a.ruleCode}</td><td>{a.periodStart} → {#if a.periodEnd}{a.periodEnd}{#else}—{/if}</td><td>{#if a.missionDone}<span class="badge badge-ok">faite</span>{#else}—{/if}</td></tr>
+        {/for}
+        </tbody>
+    </table>
+    {/if}
+    {#if view.canWrite}
+    <form method="post" action="/ui/cards/{view.summary.cardNumber}/activation" class="stacked-form" style="margin-top:14px">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">Code règle <em>*</em></span><input class="input-control" type="text" name="ruleCode" required></label>
+            <label class="field"><span class="field-label">Début <em>*</em></span><input class="input-control" type="date" name="periodStart" required></label>
+            <label class="field"><span class="field-label">Fin</span><input class="input-control" type="date" name="periodEnd"></label>
+            <label class="toggle"><input type="checkbox" name="missionDone" value="true">&nbsp;<span class="field-label">Mission faite</span></label>
+        </div>
+        <div class="form-actions"><button class="btn" type="submit">Enregistrer l'activation</button></div>
+    </form>
+    {/if}
+</div>
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Mouvements</h2></div>
+    {#if view.movements.items.isEmpty}
+    <p class="placeholder-note">Aucun mouvement.</p>
+    {#else}
+    <table class="data-table">
+        <thead><tr><th>Date</th><th>Type</th><th>Montant</th><th>Ticket</th><th>Règle</th></tr></thead>
+        <tbody>
+        {#for mv in view.movements.items}
+        <tr>
+            <td class="col-muted">{mv.date}</td>
+            <td><span class="badge">{mv.type}</span></td>
+            <td>{mv.amount} €{#if mv.reason} <span class="col-muted">({mv.reason})</span>{/if}</td>
+            <td class="col-muted">{mv.ticketRef ?: '—'}</td>
+            <td class="col-muted">{mv.ruleCode ?: '—'}</td>
+        </tr>
+        {/for}
+        </tbody>
+    </table>
+    {#if view.movementsPageCount > 1}
+    <div class="pager">
+        <a class="btn btn-small {#if view.movementsPage <= 1}is-disabled{/if}" href="/ui/cards/{view.summary.cardNumber}?mpage={view.movementsPage - 1}">‹ Préc.</a>
+        <span class="pager-status">Page {view.movementsPage} / {view.movementsPageCount}</span>
+        <a class="btn btn-small {#if view.movementsPage >= view.movementsPageCount}is-disabled{/if}" href="/ui/cards/{view.summary.cardNumber}?mpage={view.movementsPage + 1}">Suiv. ›</a>
+    </div>
+    {/if}
+    {/if}
+</div>
+{/body}
+{/include}
