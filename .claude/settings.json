@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "defaultMode": "acceptEdits",
+    "allow": [
+      "Read", "Glob", "Grep",
+      "Bash(mvn *)",
+      "Bash(git status)", "Bash(git diff *)", "Bash(git log *)",
+      "Bash(git add *)", "Bash(git commit *)",
+      "Bash(ls *)", "Bash(mkdir *)", "Bash(cat *)", "Bash(grep *)",
+      "Bash(curl *)"
+    ],
+    "deny": [
+      "Edit(docs/**)", "Write(docs/**)",
+      "Bash(rm -rf *)", "Bash(sudo *)"
+    ]
+  }
+}
