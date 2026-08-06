@@ -1,7 +1,9 @@
 package com.intermarche.fidelity.account;
 
 import com.intermarche.fidelity.domain.FidelityAccount;
+import com.intermarche.fidelity.domain.AppUser;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.transaction.Transactional;
 import jakarta.ws.rs.DefaultValue;
@@ -24,6 +26,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/accounts")
 @RunOnVirtualThread
+@RolesAllowed(AppUser.ROLE_POS)
 public class AccountResource {
 
     /**

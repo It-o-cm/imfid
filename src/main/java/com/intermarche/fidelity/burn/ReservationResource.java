@@ -1,6 +1,8 @@
 package com.intermarche.fidelity.burn;
 
+import com.intermarche.fidelity.domain.AppUser;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.DELETE;
@@ -18,6 +20,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/burn/reservations")
 @RunOnVirtualThread
+@RolesAllowed(AppUser.ROLE_POS)
 public class ReservationResource {
 
     /**

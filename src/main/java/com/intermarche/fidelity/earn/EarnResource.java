@@ -2,7 +2,9 @@ package com.intermarche.fidelity.earn;
 
 import com.intermarche.fidelity.domain.FidelityAccount;
 import com.intermarche.fidelity.domain.util.ProgramClock;
+import com.intermarche.fidelity.domain.AppUser;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -29,6 +31,7 @@ import java.time.LocalDateTime;
  */
 @Path("/api/earn")
 @RunOnVirtualThread
+@RolesAllowed(AppUser.ROLE_POS)
 public class EarnResource {
 
     private static final Logger LOGGER = Logger.getLogger(EarnResource.class);

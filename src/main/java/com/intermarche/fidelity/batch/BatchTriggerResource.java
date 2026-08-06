@@ -1,6 +1,8 @@
 package com.intermarche.fidelity.batch;
 
+import com.intermarche.fidelity.domain.AppUser;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.DefaultValue;
 import jakarta.ws.rs.POST;
@@ -21,6 +23,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/batches")
 @RunOnVirtualThread
+@RolesAllowed(AppUser.ROLE_FID_ADMIN)
 public class BatchTriggerResource {
 
     /**

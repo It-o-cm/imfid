@@ -1,6 +1,8 @@
 package com.intermarche.fidelity.ingestion;
 
+import com.intermarche.fidelity.domain.AppUser;
 import io.smallrye.common.annotation.RunOnVirtualThread;
+import jakarta.annotation.security.RolesAllowed;
 import jakarta.inject.Inject;
 import jakarta.ws.rs.Consumes;
 import jakarta.ws.rs.POST;
@@ -17,6 +19,7 @@ import jakarta.ws.rs.core.Response;
  */
 @Path("/api/events")
 @RunOnVirtualThread
+@RolesAllowed(AppUser.ROLE_POS)
 public class EventsResource {
 
     /**
