@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imfid.intermarche.com/schemas/rule/ECOUPON_EARN.json",
+  "title": "E-coupon hebdomadaire",
+  "description": "Percentage on a department, subject to prior card activation, over a week (§12).",
+  "type": "object",
+  "x-label": "E-coupon hebdomadaire",
+  "properties": {
+    "scope": { "$ref": "#/$defs/scope" },
+    "rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "x-widget": "rate",
+      "x-label": "Taux"
+    }
+  },
+  "required": ["scope", "rate"],
+  "additionalProperties": false,
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "x-widget": "scope",
+      "x-label": "Assiette",
+      "properties": {
+        "wholeStore": { "type": "boolean", "x-widget": "toggle", "x-label": "Tout le magasin" },
+        "include": { "$ref": "#/$defs/scopeSet", "x-label": "Inclusions" },
+        "exclude": { "$ref": "#/$defs/scopeSet", "x-label": "Exclusions" }
+      },
+      "additionalProperties": false
+    },
+    "scopeSet": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Marques" },
+        "families": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Familles" },
+        "eans": { "type": "array", "items": { "type": "string" }, "x-widget": "ean", "x-label": "EAN" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

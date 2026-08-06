@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imfid.intermarche.com/schemas/rule/PROGRAM_EXCLUSION.json",
+  "title": "Exclusion du programme",
+  "description": "Global assiette filter: removes its scopes from every earn assiette and founds the burnable base — 'neither accrue nor use' (§12, §22.3). A filter, not a producer.",
+  "type": "object",
+  "x-label": "Exclusion du programme",
+  "properties": {
+    "scope": { "$ref": "#/$defs/scope" }
+  },
+  "required": ["scope"],
+  "additionalProperties": false,
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "x-widget": "scope",
+      "x-label": "Scopes exclus",
+      "properties": {
+        "wholeStore": { "type": "boolean", "x-widget": "toggle", "x-label": "Tout le magasin" },
+        "include": { "$ref": "#/$defs/scopeSet", "x-label": "Inclusions" },
+        "exclude": { "$ref": "#/$defs/scopeSet", "x-label": "Carve-outs" }
+      },
+      "additionalProperties": false
+    },
+    "scopeSet": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Marques" },
+        "families": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Familles" },
+        "eans": { "type": "array", "items": { "type": "string" }, "x-widget": "ean", "x-label": "EAN" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

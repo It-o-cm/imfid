@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imfid.intermarche.com/schemas/rule/BRAND_TIERED_EARN.json",
+  "title": "Socle marques du quotidien",
+  "description": "Percentage of the eligible amount of a brand set, gated by an N-eligible-items threshold and boosted by a visit counter (§12).",
+  "type": "object",
+  "x-label": "Socle marques du quotidien",
+  "properties": {
+    "scope": { "$ref": "#/$defs/scope" },
+    "minEligibleItems": {
+      "type": "integer",
+      "minimum": 0,
+      "x-widget": "integer",
+      "x-label": "Produits éligibles minimum",
+      "x-unit": "produits"
+    },
+    "baseRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "x-widget": "rate",
+      "x-label": "Taux de base"
+    },
+    "boostedRate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "x-widget": "rate",
+      "x-label": "Taux majoré"
+    },
+    "visitThreshold": {
+      "type": "integer",
+      "minimum": 0,
+      "x-widget": "integer",
+      "x-label": "Seuil de visites",
+      "x-unit": "visites"
+    }
+  },
+  "required": ["scope", "baseRate", "boostedRate", "visitThreshold", "minEligibleItems"],
+  "additionalProperties": false,
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "x-widget": "scope",
+      "x-label": "Assiette",
+      "properties": {
+        "wholeStore": { "type": "boolean", "x-widget": "toggle", "x-label": "Tout le magasin" },
+        "include": { "$ref": "#/$defs/scopeSet", "x-label": "Inclusions" },
+        "exclude": { "$ref": "#/$defs/scopeSet", "x-label": "Exclusions" }
+      },
+      "additionalProperties": false
+    },
+    "scopeSet": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Marques" },
+        "families": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Familles" },
+        "eans": { "type": "array", "items": { "type": "string" }, "x-widget": "ean", "x-label": "EAN" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

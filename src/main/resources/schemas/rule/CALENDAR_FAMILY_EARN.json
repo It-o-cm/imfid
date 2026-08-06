@@ -1,0 +1,53 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imfid.intermarche.com/schemas/rule/CALENDAR_FAMILY_EARN.json",
+  "title": "Familles certains jours",
+  "description": "Percentage on a family set, on given weekdays — e.g. weekend fruit & vegetables (§12).",
+  "type": "object",
+  "x-label": "Familles certains jours",
+  "properties": {
+    "scope": { "$ref": "#/$defs/scope" },
+    "rate": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1,
+      "x-widget": "rate",
+      "x-label": "Taux"
+    },
+    "activeDays": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]
+      },
+      "uniqueItems": true,
+      "x-widget": "day-set",
+      "x-label": "Jours actifs"
+    }
+  },
+  "required": ["scope", "rate", "activeDays"],
+  "additionalProperties": false,
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "x-widget": "scope",
+      "x-label": "Assiette",
+      "properties": {
+        "wholeStore": { "type": "boolean", "x-widget": "toggle", "x-label": "Tout le magasin" },
+        "include": { "$ref": "#/$defs/scopeSet", "x-label": "Inclusions" },
+        "exclude": { "$ref": "#/$defs/scopeSet", "x-label": "Exclusions" }
+      },
+      "additionalProperties": false
+    },
+    "scopeSet": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Marques" },
+        "families": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Familles" },
+        "eans": { "type": "array", "items": { "type": "string" }, "x-widget": "ean", "x-label": "EAN" }
+      },
+      "additionalProperties": false
+    }
+  }
+}
