@@ -128,6 +128,22 @@ public class FidelityAccount extends BaseEntity {
     }
 
     /**
+     * Finds an account by its card number under a pessimistic write lock
+     * ({@code SELECT FOR UPDATE}) — the database pendant of the burn lease and the
+     * material condition of the "one active reservation per card" (I11) and
+     * "the second recalc sees the first credit" invariants (§26.1, §30.1). Must be
+     * called within a transaction; every write touching an account takes this lock.
+     *
+     * @param cardNumber The card number.
+     * @return The locked account, or null if none matches.
+     */
+    public static FidelityAccount lockByCardNumber(String cardNumber) {
+        return find("cardNumber", cardNumber)
+                .withLock(jakarta.persistence.LockModeType.PESSIMISTIC_WRITE)
+                .firstResult();
+    }
+
+    /**
      * Resolves the live account at the end of the transfer chain starting from the
      * given card (§32.2): follows {@link #transferredToCard} until a live account,
      * a missing successor or a cycle guard is reached.

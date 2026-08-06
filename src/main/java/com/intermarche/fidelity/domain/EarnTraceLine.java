@@ -64,6 +64,28 @@ public class EarnTraceLine extends BaseEntity {
     public BigDecimal earnAmount;
 
     /**
+     * The eligible quantity of the line (units, or one per weighing, §22.2); the
+     * denominator of a partial return prorata (§29.4).
+     */
+    @Column(name = "quantity", precision = 19, scale = 3)
+    public BigDecimal quantity;
+
+    /**
+     * The earn already debited back by returns on this line by this rule; a return
+     * never debits more than {@link #earnAmount} in total (the §29.4 bound). Euro at
+     * scale 2.
+     */
+    @Column(name = "returned_amount", nullable = false, precision = 19, scale = 2)
+    public BigDecimal returnedAmount = BigDecimal.ZERO.setScale(2, java.math.RoundingMode.HALF_UP);
+
+    /**
+     * The quantity already returned on this line by this rule; bounds the returnable
+     * quantity to the eligible one (§29.4).
+     */
+    @Column(name = "returned_quantity", precision = 19, scale = 3)
+    public BigDecimal returnedQuantity = BigDecimal.ZERO;
+
+    /**
      * Sums the eligible base credited to a card by a rule over a fiscal date range —
      * the running purchase base of a {@code CHALLENGE_EARN} rule over its period (§12,
      * §15). Reads from the ingested traces only, never the projection (§30.2). The

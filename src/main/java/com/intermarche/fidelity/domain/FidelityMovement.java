@@ -210,6 +210,34 @@ public class FidelityMovement extends BaseEntity {
     }
 
     /**
+     * Indicates whether a movement of the given type already exists for a ticket
+     * reference — the whole-ticket idempotency guard of the return ingestion, judged by
+     * {@code returnTicketRef} (§29.4): two return tickets on the same origin are two
+     * events, a replay of the same return ticket is one.
+     *
+     * @param ticketRef The ticket reference.
+     * @param type      The movement type.
+     * @return true when such a movement already exists.
+     */
+    public static boolean hasMovementForTicket(String ticketRef, MovementType type) {
+        return ticketRef != null && count("ticketRef = ?1 and type = ?2", ticketRef, type) > 0;
+    }
+
+    /**
+     * Indicates whether the account already has a confirmed burn on the given fiscal
+     * day — the once-per-day rule check (§16, §25.5): only a BURN (a confirmed
+     * reservation) consumes the rule, never an active or released lease.
+     *
+     * @param account The account.
+     * @param date    The fiscal day at the program zone.
+     * @return true when a BURN movement already exists that day.
+     */
+    public static boolean hasBurnOn(FidelityAccount account, LocalDate date) {
+        return count("account = ?1 and type = ?2 and movementDate = ?3",
+                account, MovementType.BURN, date) > 0;
+    }
+
+    /**
      * Returns a page of an account's movements, most recent first.
      *
      * @param account   The account.
