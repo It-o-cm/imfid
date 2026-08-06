@@ -173,7 +173,7 @@ public class FidelityAccount extends BaseEntity {
      * @return The stale accounts, never null.
      */
     public static List<FidelityAccount> listUnusedSince(LocalDateTime threshold) {
-        return list("status <> ?1 and (lastUsedAt is null or lastUsedAt < ?2)",
+        return list("status <> ?1 and coalesce(lastUsedAt, createdAt) < ?2",
                 AccountStatus.RESILIATED, threshold);
     }
 

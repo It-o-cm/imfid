@@ -140,6 +140,46 @@ public class FidelityMovement extends BaseEntity {
     }
 
     /**
+     * Sums the credits (positive movements) of an account grouped by earnYear — the
+     * per-year buckets the 1st-March expiry consumes FIFO (§16, §28.3).
+     *
+     * @param account The account.
+     * @return A map of earnYear to credited euro at scale 2, never null.
+     */
+    public static Map<Integer, BigDecimal> creditsByEarnYear(FidelityAccount account) {
+        Map<Integer, BigDecimal> map = new LinkedHashMap<>();
+        List<Object[]> rows = getEntityManager().createQuery(
+                        "select m.earnYear, coalesce(sum(m.amount), 0) from FidelityMovement m "
+                                + "where m.account = :a and m.amount > 0 group by m.earnYear order by m.earnYear asc",
+                        Object[].class)
+                .setParameter("a", account)
+                .getResultList();
+        for (Object[] row : rows) {
+            Integer year = ((Number) row[0]).intValue();
+            BigDecimal sum = row[1] != null ? (BigDecimal) row[1] : BigDecimal.ZERO;
+            map.put(year, sum.setScale(2, RoundingMode.HALF_UP));
+        }
+        return map;
+    }
+
+    /**
+     * Sums the debits of an account as a positive total (burn, return, expiry, purge…) —
+     * the lump the FIFO walk consumes from the oldest earnYear first (§16, §28.3).
+     *
+     * @param account The account.
+     * @return The debit total (positive), euro at scale 2, never null.
+     */
+    public static BigDecimal totalDebits(FidelityAccount account) {
+        BigDecimal sum = getEntityManager().createQuery(
+                        "select coalesce(sum(m.amount), 0) from FidelityMovement m "
+                                + "where m.account = :a and m.amount < 0", BigDecimal.class)
+                .setParameter("a", account)
+                .getSingleResult();
+        BigDecimal debits = sum != null ? sum.negate() : BigDecimal.ZERO;
+        return debits.setScale(2, RoundingMode.HALF_UP);
+    }
+
+    /**
      * Finds the movement matching a natural idempotency key (§29.4). A null
      * ruleCode matches movements with a null rule code.
      *
