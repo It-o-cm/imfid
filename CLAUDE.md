@@ -63,6 +63,70 @@ sa seule IHM est l'administration.
 - Fixture de référence : le couple `docs/valuation-*.json` ; l'**Annexe B** (oracle earn
   sur 4 contextes) est produite par le moteur réel — première tâche après le seed.
 
+## Tests unitaires (campagne par classe)
+
+Bench repris d'imvaluation : **JUnit 5 + Mockito**, une classe de test complète et
+compilable par classe de production.
+
+**Architecture — NON NÉGOCIABLE.**
+
+- **Unitaire pur** : jamais `@QuarkusTest`, jamais H2, jamais de boot de l'application
+  pour un test de classe. On mocke tous les collaborateurs.
+- Les entités Panache **ne sont pas** enrichies bytecode sous `mvn test` nu : les finders
+  statiques retombent sur `PanacheEntityBase`. On les mocke avec
+  `Mockito.mockStatic(PanacheEntityBase.class)` et on neutralise `persist()` avec
+  `Mockito.mockConstruction(<Entity>.class)`. Les mocks statiques vont en
+  `try-with-resources`.
+- Chaque test est **isolé** : aucun état partagé, aucune dépendance d'ordre, assertions
+  sur des valeurs absolues attendues.
+
+**Le temps passe TOUJOURS par `DateTimeProvider` (§24.6) — règle imfid.** Aucun test ne
+lit `now()`, `LocalDate.now()`, `Instant.now()`, `Clock`, ni aucune horloge réelle : on
+**injecte un `DateTimeProvider` mocké et on fixe l'instant**. Toute logique temporelle est
+donc testée sur un temps figé et déterministe — fenêtres de règles, visites, baux de
+décagnottage (I11), et surtout la **date fiscale `earnYear`** au fuseau du programme
+(§30.3, §25.1). Le franchissement d'une frontière (veille/lendemain d'une fenêtre,
+31 déc./1ᵉʳ jan. fiscal, expiration d'un bail) se teste par **les deux instants** encadrant
+la borne, jamais par l'heure du jour où tourne la campagne.
+
+**Couverture des gardes — exigence §29.**
+
+- **Les DEUX BRAS** de chaque garde et de chaque ternaire (null **et** non-null) sont
+  couverts systématiquement, sans attendre une relecture JaCoCo.
+- **CHAQUE JAMBE** de chaque garde composée : `a || b || c` = un cas par jambe rendue
+  vraie (les autres fausses), nullités incluses (§29.6). Idem pour les `&&`.
+- Tout **`BigDecimal`** se compare par `compareTo` (jamais `equals` : `2.0` ≠ `2.00`),
+  échelle 2 / HALF_UP, à l'euro près.
+- Toute **division / prorata** protégé (§31.2) : un cas dénominateur zéro **et** un cas
+  dénominateur non nul.
+
+**Oracle de couverture.** 100 % de couverture de **branches** JaCoCo sur la classe cible,
+ou un résidu justifié ligne à ligne dans le rapport. On rapporte toujours le **compte de
+branches (n/n)**, pas seulement le pourcentage.
+
+**Style.** Code et commentaires en anglais ; **Javadoc sur toute méthode** (tests et
+helpers privés inclus) ; assertions `org.junit.jupiter.api.Assertions` uniquement (jamais
+AssertJ) ; pas de ligne vide dans un corps de méthode.
+
+**Périmètre — STRICT.** Ne jamais modifier `src/main`. Un bug ou un obstacle à la
+testabilité s'arrête et se signale en une ligne. Ne toucher que la classe de test générée.
+
+**Appliers earn — LOGIQUE PURE, cœur du moteur.** Les 7 appliers (§12) sont de la
+computation pure : les tester **sans** mocker Panache quand c'est possible — construire les
+paniers valorisés / spécifications en mémoire et asserter l'arithmétique directement.
+Viser la couverture au centime : quantités fractionnaires, arrondis, résidus de centime,
+plafonds, prédicat de non-cumul (I1, I2).
+
+**Workflow par classe.**
+1. Lire la classe cible (et seulement le nécessaire).
+2. Énumérer toutes les branches **avant** d'écrire.
+3. Écrire/compléter la classe de test → `mvn -q -Dtest=<TestClass> -DskipITs test`
+   jusqu'au vert.
+4. `mvn -q -Dtest=<TestClass> -DskipITs verify` → lire le rapport JaCoCo de la classe →
+   combler chaque branche manquante.
+5. **Rapport** : compte de branches n/n, couverture %, fichiers lus, itérations, résidu
+   justifié.
+
 ## Build et sessions
 
 - `mvn quarkus:dev` (port 8060) ; commits conventionnels, messages en anglais.
