@@ -20,6 +20,7 @@
         <skipUTs>false</skipUTs>
         <exec-plugin.version>3.5.0</exec-plugin.version>
         <surefire-plugin.version>3.5.4</surefire-plugin.version>
+        <jacoco-plugin.version>0.8.13</jacoco-plugin.version>
     </properties>
 
     <dependencyManagement>
@@ -141,6 +142,14 @@
             <artifactId>quarkus-security-jpa</artifactId>
         </dependency>
 
+        <!-- Password-reset e-mails (§24.1). Mocked outside production: the mail is
+             written to the log instead of being sent, so the flow is testable in dev
+             without any SMTP server. -->
+        <dependency>
+            <groupId>io.quarkus</groupId>
+            <artifactId>quarkus-mailer</artifactId>
+        </dependency>
+
         <!-- Batches: 1st-March expiry, 24-month purge, activation void (§16, §24.6). -->
         <dependency>
             <groupId>io.quarkus</groupId>
@@ -177,11 +186,6 @@
             <scope>test</scope>
         </dependency>
         <dependency>
-            <groupId>io.quarkus</groupId>
-            <artifactId>quarkus-jacoco</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
             <groupId>io.rest-assured</groupId>
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
@@ -213,12 +217,40 @@
                     <parameters>true</parameters>
                 </configuration>
             </plugin>
+            <!-- Classic JaCoCo: prepare-agent (its argLine feeds surefire via @{argLine})
+                 + report at verify. Deliberately NOT quarkus-jacoco, which only attributes
+                 coverage to code exercised through a @QuarkusTest boot and reports 0% for
+                 the plain-unit campaign. -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco-plugin.version}</version>
+                <executions>
+                    <execution>
+                        <id>jacoco-prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>jacoco-report</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
             <plugin>
                 <artifactId>maven-surefire-plugin</artifactId>
                 <version>${surefire-plugin.version}</version>
                 <configuration>
                     <skip>${skipUTs}</skip>
-                    <argLine>--add-opens java.base/java.lang=ALL-UNNAMED</argLine>
+                    <!-- @{argLine} injects the JaCoCo agent set by prepare-agent so plain
+                         unit tests (no @QuarkusTest) are actually instrumented. Without it
+                         the literal argLine would drop the agent — the quarkus-jacoco
+                         blindspot where non-boot tests report 0% coverage. -->
+                    <argLine>@{argLine} --add-opens java.base/java.lang=ALL-UNNAMED</argLine>
                     <systemPropertyVariables>
                         <java.util.logging.manager>org.jboss.logmanager.LogManager</java.util.logging.manager>
                         <maven.home>${maven.home}</maven.home>

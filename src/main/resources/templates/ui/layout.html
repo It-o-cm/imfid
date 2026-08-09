@@ -21,10 +21,12 @@
         <a href="/ui/program">Programme</a>
         <a href="/ui/imports">Imports</a>
         <a href="/ui/simulator">Simulateur</a>
+        {#if inject:currentUser.admin}<a href="/ui/users">Utilisateurs</a>{/if}
     </nav>
     {#if inject:currentUser.authenticated}
     <div class="app-identity">
         <span class="app-identity-name">{inject:currentUser.name}</span>
+        <a class="app-identity-link" href="/ui/password">Mot de passe</a>
         <form method="post" action="/ui/logout" class="app-identity-form">
             <button class="app-identity-link" type="submit">Déconnexion</button>
         </form>

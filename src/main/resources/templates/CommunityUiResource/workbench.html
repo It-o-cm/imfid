@@ -13,13 +13,33 @@
 <div class="alert {#if noticeOk}alert-ok{#else}alert-error{/if}">{notice}</div>
 {/if}
 
+{#if !community.active}
+<div class="alert alert-error">Communauté fermée aux nouveaux enrôlements : les membres existants continuent de bénéficier de leurs avantages tant que leurs adhésions et les règles associées courent (§23.2).</div>
+{/if}
+
 <div class="card">
     <div class="card-title-row"><h2 class="card-title">Paramètres</h2></div>
     <div class="field-grid">
         <div class="field"><span class="field-label">Éligibilité</span><span class="field-hint">{community.eligibilityCriteria ?: '—'}</span></div>
         <div class="field"><span class="field-label">Fenêtre de renouvellement</span><span>{#if community.renewalStartMonth}mois {community.renewalStartMonth} à {community.renewalEndMonth}{#else}—{/if}</span></div>
+        <div class="field"><span class="field-label">Enrôlement</span><span class="badge {#if community.active}badge-ok{#else}badge-off{/if}">{#if community.active}OUVERT{#else}FERMÉ{/if}</span></div>
     </div>
-    <p class="field-hint">Les paramètres de communauté s'administrent par import (§18).</p>
+    {#if canWrite}
+    <div class="form-actions">
+        <a class="btn" href="/ui/communities/{community.code}/edit">Modifier les paramètres</a>
+        <form method="post" action="/ui/communities/{community.code}/active"
+              {#if community.active}onsubmit="return confirm('Fermer la communauté {community.code} aux nouveaux enrôlements ? Les membres existants conservent leurs avantages.');"{/if}>
+            {#if community.active}
+            <input type="hidden" name="active" value="false">
+            <button class="btn btn-danger" type="submit">Fermer aux enrôlements</button>
+            {#else}
+            <input type="hidden" name="active" value="true">
+            <button class="btn" type="submit">Rouvrir aux enrôlements</button>
+            {/if}
+        </form>
+    </div>
+    {/if}
+    <p class="field-hint">Le formulaire couvre le geste unitaire ; l'import FIDELITY_COMMUNITIES reste le flux central (§18), les deux upsertant par code.</p>
 </div>
 
 <div class="card">

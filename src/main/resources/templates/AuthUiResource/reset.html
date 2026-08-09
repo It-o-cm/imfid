@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Nouveau mot de passe — Fidélité admin</title>
+    <link rel="stylesheet" href="/ui/base.css">
+    <link rel="stylesheet" href="/ui/auth.css">
+</head>
+<body class="login-body">
+<main class="login-panel">
+    <div class="login-brand">
+        <span class="app-brand-mark"></span>
+        <span class="app-brand-text">Fidélité<b>admin</b></span>
+    </div>
+
+    {#if error}
+    <div class="alert alert-error" role="alert">{error}</div>
+    {/if}
+
+    <form class="login-form" method="post" action="/ui/reset">
+        <input type="hidden" name="token" value="{token}">
+        <label class="field">
+            <span class="field-label">Nouveau mot de passe (8 caractères minimum)</span>
+            <input type="password" name="password" autocomplete="new-password" required autofocus>
+        </label>
+
+        <label class="field">
+            <span class="field-label">Confirmez le mot de passe</span>
+            <input type="password" name="confirm" autocomplete="new-password" required>
+        </label>
+
+        <button class="btn btn-primary login-submit" type="submit">Changer le mot de passe</button>
+    </form>
+
+    <p class="field-hint" style="margin-top:14px;text-align:center">
+        <a href="/ui/login">← Retour à la connexion</a>
+    </p>
+</main>
+</body>
+</html>

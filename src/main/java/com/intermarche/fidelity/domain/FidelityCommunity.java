@@ -73,6 +73,15 @@ public class FidelityCommunity extends BaseEntity {
     @Column(name = "eligibility_criteria", length = 500)
     public String eligibilityCriteria;
 
+    /**
+     * Whether the community is open to new enrollments (§23.2): an inactive community
+     * refuses any new membership, while the existing members keep earning as long as
+     * their memberships and the referencing rules run — extinction is driven by the
+     * rules' end of application, never retroactively.
+     */
+    @Column(name = "is_active", nullable = false)
+    public boolean active = true;
+
     // --------------------------------------------------
     // Panache Active Record Queries
     // --------------------------------------------------
@@ -104,6 +113,6 @@ public class FidelityCommunity extends BaseEntity {
     @Override
     public int getChecksum() {
         return Objects.hash(code, label, monthlyCap, enrollmentCap,
-                renewalStartMonth, renewalEndMonth, eligibilityCriteria);
+                renewalStartMonth, renewalEndMonth, eligibilityCriteria, active);
     }
 }

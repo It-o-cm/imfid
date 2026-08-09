@@ -307,7 +307,21 @@
         return collect();
     }
 
-    typeSel.addEventListener('change', function () { render(typeSel.value, {}); });
+    /*
+     * Read-only consultation mode (§23.3): the rule sheet reuses this very same
+     * generated form, with every control frozen after each render; the Form / JSON
+     * toggle stays usable so the raw specification remains inspectable.
+     */
+    var ruleForm = document.getElementById('rule-form');
+    var readOnly = !!(ruleForm && ruleForm.dataset.readonly === 'true');
+
+    function lockIfReadOnly() {
+        if (!readOnly) { return; }
+        host.querySelectorAll('input, select, textarea, button').forEach(function (node) { node.disabled = true; });
+        if (jsonArea) { jsonArea.readOnly = true; }
+    }
+
+    typeSel.addEventListener('change', function () { render(typeSel.value, {}); lockIfReadOnly(); });
 
     var toForm = document.getElementById('toggle-form');
     var toJson = document.getElementById('toggle-json');
@@ -322,6 +336,7 @@
         toForm.addEventListener('click', function () {
             var spec = jsonArea.value.trim() ? (function () { try { return JSON.parse(jsonArea.value); } catch (e) { return collect(); } })() : collect();
             render(typeSel.value, spec);
+            lockIfReadOnly();
             jsonHost.classList.add('is-hidden');
             formHost.classList.remove('is-hidden');
         });
@@ -335,4 +350,5 @@
     }
 
     render(typeSel.value, initialSpec);
+    lockIfReadOnly();
 })();

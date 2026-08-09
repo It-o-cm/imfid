@@ -1,0 +1,96 @@
+{#include ui/layout}
+{#title}Utilisateurs — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Utilisateurs</h1>
+        <p class="page-sub">{view.summary}</p>
+    </div>
+    {#if view.canWrite}
+    <div class="page-actions">
+        <a class="btn btn-primary" href="/ui/users/new">Nouvel utilisateur</a>
+    </div>
+    {/if}
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<form class="filter-bar" method="get" action="/ui/users">
+    <input type="hidden" name="sort" value="{view.sort}">
+    <input type="hidden" name="dir" value="{view.direction}">
+    <div class="filter-field">
+        <label class="filter-label">Recherche</label>
+        <input type="search" name="q" value="{view.filter('q')}" placeholder="Login, nom ou e-mail">
+    </div>
+    <div class="filter-field">
+        <label class="filter-label">Rôle</label>
+        <select name="role">
+            <option value="" {#if view.filter('role') == ''}selected{/if}>Tous</option>
+            <option value="pos" {#if view.filter('role') == 'pos'}selected{/if}>pos</option>
+            <option value="fid-admin" {#if view.filter('role') == 'fid-admin'}selected{/if}>fid-admin</option>
+        </select>
+    </div>
+    <div class="filter-actions">
+        <button class="btn btn-primary" type="submit">Filtrer</button>
+        {#if view.filtered}<a class="btn btn-ghost" href="/ui/users">Réinitialiser</a>{/if}
+    </div>
+</form>
+
+{#if view.rows.isEmpty}
+<div class="empty-state">
+    <p>Aucun utilisateur ne correspond au filtre.</p>
+    <p class="empty-hint">Créez un compte opérateur avec le bouton « Nouvel utilisateur ».</p>
+</div>
+{#else}
+<table class="data-table">
+    <thead>
+    <tr>
+        <th class="{#if view.isSortedOn('username')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('username')}">Login <span class="sort-arrow">{view.sortIndicator('username')}</span></a></th>
+        <th class="{#if view.isSortedOn('displayName')}is-sorted{/if}"><a class="col-sort" href="{view.sortUrl('displayName')}">Nom affiché <span class="sort-arrow">{view.sortIndicator('displayName')}</span></a></th>
+        <th>E-mail</th>
+        <th>Rôles</th>
+        <th>Statut</th>
+        {#if view.canWrite}<th class="col-actions">Actions</th>{/if}
+    </tr>
+    </thead>
+    <tbody>
+    {#for row in view.rows}
+    <tr>
+        <td>
+            <a class="link-strong" href="/ui/users/{row.id}">{row.username}</a>
+            {#if row.self}<span class="chip chip-self">vous</span>{/if}
+        </td>
+        <td class="col-muted">{#if row.displayName}{row.displayName}{#else}—{/if}</td>
+        <td class="col-muted">{#if row.email}{row.email}{#else}—{/if}</td>
+        <td>{#for role in row.roles}<span class="chip chip-role">{role}</span> {/for}</td>
+        <td>
+            {#if row.active}<span class="badge badge-ok">Actif</span>{#else}<span class="badge badge-off">Désactivé</span>{/if}
+            {#if row.mustChangePassword}<span class="badge">MDP à changer</span>{/if}
+        </td>
+        {#if view.canWrite}
+        <td class="col-actions">
+            <a class="btn btn-small" href="/ui/users/{row.id}">Éditer</a>
+            {#if !row.self}
+            <form method="post" action="/ui/users/{row.id}/delete" onsubmit="return confirm('Supprimer le compte {row.username} ?');">
+                <button class="btn btn-small btn-danger" type="submit">Supprimer</button>
+            </form>
+            {/if}
+        </td>
+        {/if}
+    </tr>
+    {/for}
+    </tbody>
+</table>
+
+{#if view.paged}
+<div class="pager">
+    <a class="btn btn-small {#if !view.hasPrevious}is-disabled{/if}" href="{view.pageUrl(view.currentPage - 1)}">‹ Préc.</a>
+    <span class="pager-status">Page {view.currentPage} / {view.pageCount}<span class="pager-range">{view.rangeLabel}</span></span>
+    <a class="btn btn-small {#if !view.hasNext}is-disabled{/if}" href="{view.pageUrl(view.currentPage + 1)}">Suiv. ›</a>
+</div>
+{/if}
+{/if}
+{/body}
+{/include}

@@ -6,6 +6,11 @@
         <h1>Communautés</h1>
         <p class="page-sub">{view.summary}</p>
     </div>
+    {#if view.canWrite}
+    <div class="page-actions">
+        <a class="btn btn-primary" href="/ui/communities/new">Nouvelle communauté</a>
+    </div>
+    {/if}
 </div>
 
 {#if view.hasNotice}
@@ -19,7 +24,7 @@
 </div>
 {#else}
 <table class="data-table">
-    <thead><tr><th>Code</th><th>Libellé</th><th>Plafond mensuel</th><th>Membres actifs</th><th>Renouvellement</th></tr></thead>
+    <thead><tr><th>Code</th><th>Libellé</th><th>Plafond mensuel</th><th>Membres actifs</th><th>Renouvellement</th><th>Enrôlement</th></tr></thead>
     <tbody>
     {#for row in view.rows}
     <tr>
@@ -28,6 +33,7 @@
         <td>{#if row.monthlyCap}{row.monthlyCap} €{#else}—{/if}</td>
         <td>{row.activeMembers}</td>
         <td class="col-muted">{#if row.renewalStartMonth}mois {row.renewalStartMonth}–{row.renewalEndMonth}{#else}—{/if}</td>
+        <td><span class="badge {#if row.active}badge-ok{#else}badge-off{/if}">{#if row.active}OUVERT{#else}FERMÉ{/if}</span></td>
     </tr>
     {/for}
     </tbody>

@@ -1,0 +1,47 @@
+{#include ui/layout}
+{#title}{view.title} — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>{view.title}</h1>
+        <p class="page-sub">Le geste unitaire du catalogue des communautés (§23.2) ; l'import FIDELITY_COMMUNITIES reste le flux central.</p>
+    </div>
+    <div class="page-actions"><a class="btn btn-ghost" href="{#if view.editMode}/ui/communities/{view.code}{#else}/ui/communities{/if}">← Retour</a></div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<form class="card stacked-form" method="post" action="{view.action}">
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Code <em>*</em></span>
+            <input class="input-control" type="text" name="code" value="{view.code}" required {#if view.editMode}readonly{/if}></label>
+        <label class="field"><span class="field-label">Libellé <em>*</em></span>
+            <input class="input-control" type="text" name="label" value="{view.label}" required></label>
+    </div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Plafond mensuel / carte (€)</span>
+            <div class="input-unit"><input class="input-control" type="number" step="0.01" min="0" name="monthlyCap" value="{view.monthlyCap}"><span class="input-suffix">€</span></div></label>
+        <label class="field"><span class="field-label">Plafond d'enrôlements (vide = illimité)</span>
+            <input class="input-control" type="number" min="0" name="enrollmentCap" value="{view.enrollmentCap}"></label>
+    </div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Renouvellement — premier mois (1-12)</span>
+            <input class="input-control" type="number" min="1" max="12" name="renewalStartMonth" value="{view.renewalStartMonth}"></label>
+        <label class="field"><span class="field-label">Renouvellement — dernier mois (1-12)</span>
+            <input class="input-control" type="number" min="1" max="12" name="renewalEndMonth" value="{view.renewalEndMonth}"></label>
+    </div>
+    <label class="field"><span class="field-label">Critère d'éligibilité (descriptif, non exécutable)</span>
+        <input class="input-control" type="text" name="eligibilityCriteria" value="{view.eligibilityCriteria}" placeholder="Ex. : Personnes de 65 ans et plus"></label>
+
+    {#if view.canWrite}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{view.submitLabel}</button></div>
+    {/if}
+</form>
+
+{#if !view.editMode}
+<p class="field-hint">Une communauté seule ne produit rien : créez ensuite la règle COMMUNITY_EARN qui la référence (écran Règles), puis enrôlez les membres dans son atelier (§23.2).</p>
+{/if}
+{/body}
+{/include}

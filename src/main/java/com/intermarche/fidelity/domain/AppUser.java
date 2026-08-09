@@ -98,6 +98,15 @@ public class AppUser extends BaseEntity {
     public String displayName;
 
     /**
+     * The e-mail address password-reset links are sent to (§24.1); null for machine
+     * accounts (e.g. the {@code pos} client), which then have no self-service reset.
+     * These are operator addresses — imfid stays pseudonymous on the loyalty side
+     * (§33.3).
+     */
+    @Column(name = "email", length = 190)
+    public String email;
+
+    /**
      * Whether the account may sign in; disabling is preferred over deleting for the audit
      * trail.
      */
@@ -225,6 +234,21 @@ public class AppUser extends BaseEntity {
     }
 
     /**
+     * Finds an active user by e-mail address, case-insensitively — the lookup of the
+     * password-reset request (§24.1). A disabled account is never returned: it must not
+     * be able to reset its way back in.
+     *
+     * @param email The e-mail address to search for.
+     * @return The active user, or null when none matches.
+     */
+    public static AppUser findActiveByEmail(String email) {
+        if (email == null || email.isBlank()) {
+            return null;
+        }
+        return find("active = true and lower(email) = ?1", email.trim().toLowerCase()).firstResult();
+    }
+
+    /**
      * Counts the active users holding the {@code fid-admin} role — used to refuse removing
      * the last administrator, which would lock everyone out.
      *
@@ -246,6 +270,6 @@ public class AppUser extends BaseEntity {
      */
     @Override
     public int getChecksum() {
-        return Objects.hash(username, password, roles, displayName, active, mustChangePassword);
+        return Objects.hash(username, password, roles, displayName, email, active, mustChangePassword);
     }
 }

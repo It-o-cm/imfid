@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Mot de passe oublié — Fidélité admin</title>
+    <link rel="stylesheet" href="/ui/base.css">
+    <link rel="stylesheet" href="/ui/auth.css">
+</head>
+<body class="login-body">
+<main class="login-panel">
+    <div class="login-brand">
+        <span class="app-brand-mark"></span>
+        <span class="app-brand-text">Fidélité<b>admin</b></span>
+    </div>
+
+    {#if sent}
+    <div class="alert alert-ok" role="alert">
+        Si un compte correspond à cette adresse, un lien de réinitialisation vient de lui être
+        envoyé. Il est valable 30 minutes et à usage unique.
+    </div>
+    {/if}
+
+    <form class="login-form" method="post" action="/ui/forgot">
+        <label class="field">
+            <span class="field-label">Votre adresse e-mail</span>
+            <input type="email" name="email" autocomplete="email" required autofocus>
+        </label>
+
+        <button class="btn btn-primary login-submit" type="submit">Envoyer le lien</button>
+    </form>
+
+    <p class="field-hint" style="margin-top:14px;text-align:center">
+        <a href="/ui/login">← Retour à la connexion</a>
+    </p>
+</main>
+</body>
+</html>

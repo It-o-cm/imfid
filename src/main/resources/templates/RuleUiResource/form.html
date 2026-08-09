@@ -1,42 +1,50 @@
 {#include ui/layout}
-{#title}Nouvelle règle — Fidélité admin{/title}
+{#title}{view.title} — Fidélité admin{/title}
 {#body}
 <div class="page-head">
     <div>
-        <h1>Nouvelle règle</h1>
+        <h1>{view.title}</h1>
+        {#if view.readOnly}
+        <p class="page-sub"><span class="badge {view.badgeClass}">{view.state}</span> — {view.label} — consultation en lecture seule (§23.3)</p>
+        {#else}
         <p class="page-sub">Formulaire généré du JSON Schema de la factory (§12, §21.3). Bascule Form / JSON toujours disponible.</p>
+        {/if}
     </div>
     <div class="page-actions"><a class="btn btn-ghost" href="/ui/rules">← Liste</a></div>
 </div>
 
-<script id="rule-schemas" type="application/json">{schemasJson.raw}</script>
-<script id="rule-communities" type="application/json">{communitiesJson.raw}</script>
-{#if source}<script id="rule-spec-initial" type="application/json">{source.raw}</script>{/if}
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
 
-<form id="rule-form" class="card stacked-form" method="post" action="/ui/rules/create">
+<script id="rule-schemas" type="application/json">{view.schemasJson.raw}</script>
+<script id="rule-communities" type="application/json">{view.communitiesJson.raw}</script>
+{#if view.hasSpecification}<script id="rule-spec-initial" type="application/json">{view.specification.raw}</script>{/if}
+
+<form id="rule-form" class="card stacked-form" method="post" action="{view.action}" data-readonly="{view.readOnly}">
     <div class="field-grid">
         <label class="field"><span class="field-label">Code <em>*</em></span>
-            <input class="input-control" type="text" name="code" value="{prefillCode}" required></label>
+            <input class="input-control" type="text" name="code" value="{view.code}" required {#if view.editMode}readonly{/if} {#if view.readOnly}disabled{/if}></label>
         <label class="field"><span class="field-label">Type <em>*</em></span>
-            <select class="input-control" id="rule-type" name="type" required>
-                {#for t in types}<option value="{t}">{t}</option>{/for}
+            <select class="input-control" id="rule-type" name="type" required {#if view.readOnly}disabled{/if}>
+                {#for t in view.types}<option value="{t}" {#if t == view.type}selected{/if}>{t}</option>{/for}
             </select></label>
         <label class="field"><span class="field-label">Libellé (imprimé sur le ticket) <em>*</em></span>
-            <input class="input-control" type="text" name="label" required></label>
+            <input class="input-control" type="text" name="label" value="{view.label}" required {#if view.readOnly}disabled{/if}></label>
     </div>
     <div class="field-grid">
         <label class="field"><span class="field-label">Valide depuis <em>*</em></span>
-            <input class="input-control" type="datetime-local" name="validFrom" required></label>
+            <input class="input-control" type="datetime-local" name="validFrom" value="{view.validFrom}" required {#if view.readOnly}disabled{/if}></label>
         <label class="field"><span class="field-label">Valide jusqu'à</span>
-            <input class="input-control" type="datetime-local" name="validTo"></label>
+            <input class="input-control" type="datetime-local" name="validTo" value="{view.validTo}" {#if view.readOnly}disabled{/if}></label>
         <label class="field"><span class="field-label">Priorité</span>
-            <input class="input-control" type="number" name="priority" value="0"></label>
+            <input class="input-control" type="number" name="priority" value="{view.priority}" {#if view.readOnly}disabled{/if}></label>
     </div>
     <div class="field-grid">
         <label class="field"><span class="field-label">Plafond mensuel / carte (€)</span>
-            <div class="input-unit"><input class="input-control" type="number" step="0.01" name="monthlyCapPerCard"><span class="input-suffix">€</span></div></label>
-        <label class="toggle"><input type="checkbox" name="exclusive" value="true">&nbsp;<span class="field-label">Exclusive (consomme ses lignes)</span></label>
-        <label class="toggle"><input type="checkbox" name="active" value="true" checked>&nbsp;<span class="field-label">Active</span></label>
+            <div class="input-unit"><input class="input-control" type="number" step="0.01" name="monthlyCapPerCard" value="{view.monthlyCapPerCard}" {#if view.readOnly}disabled{/if}><span class="input-suffix">€</span></div></label>
+        <label class="toggle"><input type="checkbox" name="exclusive" value="true" {#if view.exclusive}checked{/if} {#if view.readOnly}disabled{/if}>&nbsp;<span class="field-label">Exclusive (consomme ses lignes)</span></label>
+        <label class="toggle"><input type="checkbox" name="active" value="true" {#if view.active}checked{/if} {#if view.readOnly}disabled{/if}>&nbsp;<span class="field-label">Active</span></label>
     </div>
 
     <div class="card-title-row" style="margin-top:8px">
@@ -54,10 +62,41 @@
     </div>
     <input type="hidden" id="specification" name="specification">
 
-    {#if canWrite}
-    <div class="form-actions"><button class="btn btn-primary" type="submit">Créer la règle</button></div>
+    {#if view.canWrite && !view.readOnly}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{view.submitLabel}</button></div>
     {/if}
 </form>
+
+{#if view.readOnly && view.canWrite}
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Actions</h2></div>
+    <div class="form-actions">
+        {#if view.editable}
+        <a class="btn btn-primary" href="/ui/rules/{view.code}/edit">Éditer</a>
+        {/if}
+        <a class="btn" href="/ui/rules/new?from={view.code}">Dupliquer</a>
+    </div>
+    {#if !view.editable}
+    <p class="field-hint">Une règle entrée en vigueur n'est jamais modifiée : pour la faire évoluer, dupliquez-la, ajustez la copie, puis posez ici la fin d'application de l'ancienne (§18, §23.3).</p>
+    {/if}
+</div>
+
+{#if view.open}
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Fin d'application</h2></div>
+    <form method="post" action="/ui/rules/{view.code}/end-date" class="stacked-form">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">La règle cesse de s'appliquer le</span>
+                <input class="input-control" type="datetime-local" name="validTo" value="{view.validTo}"></label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer la fin d'application</button></div>
+    </form>
+    <p class="field-hint">Laissez vide pour une règle sans fin. La fin ne peut jamais être posée dans le passé,
+        et une règle dont la fenêtre est terminée est définitivement figée (§18) — les tickets déjà émis restent
+        calculés avec la règle telle qu'elle était à leur date.</p>
+</div>
+{/if}
+{/if}
 
 <script src="/ui/rules-form.js"></script>
 {/body}

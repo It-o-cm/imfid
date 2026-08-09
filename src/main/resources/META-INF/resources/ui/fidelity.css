@@ -84,6 +84,34 @@
     color: var(--im-accent);
 }
 
+/* ---------- Users (§24.1) ---------- */
+.chip-role { background: #eceaf7; color: #5a49a8; }
+.chip-self { background: #eef1f6; color: var(--im-ink-soft); }
+
+.role-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: 10px;
+}
+
+.role-option {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 10px;
+    align-items: start;
+    border: 1px solid var(--im-line);
+    border-radius: 6px;
+    padding: 12px 14px;
+    background: #fafbfc;
+}
+
+.role-option input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--im-red); }
+.role-name { display: block; font-weight: 600; font-size: 14px; }
+.role-desc { display: block; font-size: 12px; color: var(--im-ink-soft); line-height: 1.4; }
+
+.toggle-row { display: inline-flex; align-items: center; margin-top: 4px; }
+.toggle-row input { width: 18px; height: 18px; accent-color: var(--im-red); }
+
 /* ---------- Imports ---------- */
 .import-drop {
     padding: 22px;

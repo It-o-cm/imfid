@@ -120,8 +120,106 @@ public class AdminService {
     }
 
     /**
+     * Updates in place a rule that has not yet entered into force (§18, §23.3) — the one
+     * case where editing is sound: an upcoming rule has never been evaluated, so no
+     * ledger movement or replay depends on it. Everything but the code is editable; the
+     * updated window must not start in the past (the edit stays replay-neutral), and the
+     * type and specification are validated like at creation (§12).
+     *
+     * @param code              The code of the rule to update (frozen identity).
+     * @param type              The rule type (must have a deployed factory).
+     * @param label             The printed label.
+     * @param validFrom         The window start (must not be in the past).
+     * @param validTo           The window end, or null while open.
+     * @param priority          The evaluation priority.
+     * @param exclusive         Whether the rule consumes its lines.
+     * @param monthlyCapPerCard The per-card monthly cap, or null.
+     * @param active            Whether the rule is active.
+     * @param specification     The JSON specification.
+     * @return The updated rule.
+     */
+    @Transactional
+    public FidelityRule updateRule(String code, String type, String label, LocalDateTime validFrom,
+                                   LocalDateTime validTo, int priority, boolean exclusive,
+                                   BigDecimal monthlyCapPerCard, boolean active, String specification) {
+        FidelityRule rule = FidelityRule.findByCode(code);
+        if (rule == null) {
+            throw new AdminException("No rule with code '" + code + "'");
+        }
+        if (!clock.now().isBefore(rule.validFrom)) {
+            throw new AdminException("Only a rule not yet in force can be edited; version it instead (§18)");
+        }
+        requireText(type, "type");
+        if (!registry.hasFactory(type)) {
+            throw new AdminException("Unknown rule type '" + type + "' (no factory deployed)");
+        }
+        List<String> violations = registry.validate(type, specification);
+        if (!violations.isEmpty()) {
+            throw new AdminException("Invalid specification for type '" + type + "': " + String.join("; ", violations));
+        }
+        if (validFrom == null) {
+            throw new AdminException("validFrom is mandatory");
+        }
+        if (validFrom.toLocalDate().isBefore(clock.today())) {
+            throw new AdminException("An edited rule cannot start in the past (§18)");
+        }
+        for (FidelityRule existing : FidelityRule.<FidelityRule>list("code", code)) {
+            if (!existing.id.equals(rule.id) && windowsOverlap(validFrom, validTo, existing.validFrom, existing.validTo)) {
+                throw new AdminException("Rule window overlaps an existing instance of code '" + code + "'");
+            }
+        }
+        rule.type = type;
+        rule.label = label;
+        rule.validFrom = validFrom;
+        rule.validTo = validTo;
+        rule.priority = priority;
+        rule.exclusive = exclusive;
+        rule.monthlyCapPerCard = monthlyCapPerCard;
+        rule.active = active;
+        rule.specification = specification;
+        rule.persist();
+        return rule;
+    }
+
+    /**
+     * Updates the end of application of a rule whose window has not ended yet (§18):
+     * the end may be moved earlier or later, or cleared (null = open-ended again). The
+     * one invariant is replay-neutrality — the current end has not passed, and the new
+     * end may not be in the past — so no already-emitted ticket ever changes meaning at
+     * replay. A rule whose window has ended is frozen forever; extending the end is
+     * refused when it would overlap another instance of the same code (its successor
+     * version).
+     *
+     * @param code    The rule code.
+     * @param validTo The new window end (at or after today), or null for open-ended.
+     * @return The updated rule.
+     */
+    @Transactional
+    public FidelityRule updateEndDate(String code, LocalDateTime validTo) {
+        FidelityRule rule = openRuleByCode(code);
+        if (rule == null) {
+            throw new AdminException("No rule with code '" + code + "' whose window is still open; "
+                    + "an ended rule is frozen — version it instead (§18)");
+        }
+        if (validTo != null && validTo.toLocalDate().isBefore(clock.today())) {
+            throw new AdminException("The end of application can never be set in the past (§18)");
+        }
+        for (FidelityRule existing : FidelityRule.<FidelityRule>list("code", code)) {
+            if (!existing.id.equals(rule.id)
+                    && windowsOverlap(rule.validFrom, validTo, existing.validFrom, existing.validTo)) {
+                throw new AdminException("The new window would overlap another instance of code '" + code + "'");
+            }
+        }
+        rule.validTo = validTo;
+        rule.persist();
+        return rule;
+    }
+
+    /**
      * Closes an open rule by posting a {@code validTo} not in the past (§18); the
-     * specification then becomes immutable (§13).
+     * specification then becomes immutable (§13). Kept as the GraphQL administration
+     * gesture (§26); the UI edits the end of application through
+     * {@link #updateEndDate(String, LocalDateTime)}.
      *
      * @param code    The rule code.
      * @param validTo The window end (must be at or after today).
@@ -294,6 +392,142 @@ public class AdminService {
     // Memberships, activations, settings (§26.5, §28.4)
     // --------------------------------------------------
 
+    // --------------------------------------------------
+    // Community catalog (§23.2)
+    // --------------------------------------------------
+
+    /**
+     * Creates a community from the administration form (§23.2) — the unit gesture; the
+     * CSV import remains the central bulk feed, both upserting by the stable code.
+     *
+     * @param code                The unique business code.
+     * @param label               The human label.
+     * @param monthlyCap          The per-card monthly cap in euro, or null.
+     * @param enrollmentCap       The maximum number of memberships, or null.
+     * @param renewalStartMonth   First month (1-12) of the renewal window, or null.
+     * @param renewalEndMonth     Last month (1-12) of the renewal window, or null.
+     * @param eligibilityCriteria The descriptive eligibility criterion, or null.
+     * @return The created community.
+     */
+    @Transactional
+    public FidelityCommunity createCommunity(String code, String label, BigDecimal monthlyCap,
+                                             Integer enrollmentCap, Integer renewalStartMonth,
+                                             Integer renewalEndMonth, String eligibilityCriteria) {
+        requireText(code, "code");
+        requireText(label, "label");
+        if (FidelityCommunity.findByCode(code.trim()) != null) {
+            throw new AdminException("A community with code '" + code.trim() + "' already exists");
+        }
+        validateCommunityParams(monthlyCap, enrollmentCap, renewalStartMonth, renewalEndMonth);
+        FidelityCommunity community = new FidelityCommunity();
+        community.code = code.trim();
+        applyCommunityParams(community, label, monthlyCap, enrollmentCap,
+                renewalStartMonth, renewalEndMonth, eligibilityCriteria);
+        community.active = true;
+        community.persist();
+        return community;
+    }
+
+    /**
+     * Updates the parameters of a community (§23.2); the code, referenced by rule
+     * specifications and by the ledger's per-community caps, is frozen.
+     *
+     * @param code                The code of the community to update.
+     * @param label               The human label.
+     * @param monthlyCap          The per-card monthly cap in euro, or null.
+     * @param enrollmentCap       The maximum number of memberships, or null.
+     * @param renewalStartMonth   First month (1-12) of the renewal window, or null.
+     * @param renewalEndMonth     Last month (1-12) of the renewal window, or null.
+     * @param eligibilityCriteria The descriptive eligibility criterion, or null.
+     * @return The updated community.
+     */
+    @Transactional
+    public FidelityCommunity updateCommunity(String code, String label, BigDecimal monthlyCap,
+                                             Integer enrollmentCap, Integer renewalStartMonth,
+                                             Integer renewalEndMonth, String eligibilityCriteria) {
+        FidelityCommunity community = FidelityCommunity.findByCode(code);
+        if (community == null) {
+            throw new AdminException("Unknown community '" + code + "'");
+        }
+        requireText(label, "label");
+        validateCommunityParams(monthlyCap, enrollmentCap, renewalStartMonth, renewalEndMonth);
+        applyCommunityParams(community, label, monthlyCap, enrollmentCap,
+                renewalStartMonth, renewalEndMonth, eligibilityCriteria);
+        community.persist();
+        return community;
+    }
+
+    /**
+     * Opens or closes a community to new enrollments (§23.2). Deactivation blocks any
+     * new membership only: existing members keep earning as long as their memberships
+     * and the referencing rules run — extinction is driven by the rules' end of
+     * application.
+     *
+     * @param code   The community code.
+     * @param active Whether the community accepts new enrollments.
+     * @return The updated community.
+     */
+    @Transactional
+    public FidelityCommunity setCommunityActive(String code, boolean active) {
+        FidelityCommunity community = FidelityCommunity.findByCode(code);
+        if (community == null) {
+            throw new AdminException("Unknown community '" + code + "'");
+        }
+        community.active = active;
+        community.persist();
+        return community;
+    }
+
+    /**
+     * Copies the editable community parameters onto the entity.
+     *
+     * @param community           The target community.
+     * @param label               The human label.
+     * @param monthlyCap          The per-card monthly cap, or null.
+     * @param enrollmentCap       The enrollment cap, or null.
+     * @param renewalStartMonth   The renewal window start month, or null.
+     * @param renewalEndMonth     The renewal window end month, or null.
+     * @param eligibilityCriteria The eligibility criterion, or null.
+     */
+    private void applyCommunityParams(FidelityCommunity community, String label, BigDecimal monthlyCap,
+                                      Integer enrollmentCap, Integer renewalStartMonth,
+                                      Integer renewalEndMonth, String eligibilityCriteria) {
+        community.label = label.trim();
+        community.monthlyCap = monthlyCap;
+        community.enrollmentCap = enrollmentCap;
+        community.renewalStartMonth = renewalStartMonth;
+        community.renewalEndMonth = renewalEndMonth;
+        community.eligibilityCriteria = eligibilityCriteria == null || eligibilityCriteria.isBlank()
+                ? null : eligibilityCriteria.trim();
+    }
+
+    /**
+     * Validates the community parameters: non-negative caps, months within 1-12, and a
+     * renewal window either absent or complete.
+     *
+     * @param monthlyCap        The per-card monthly cap, or null.
+     * @param enrollmentCap     The enrollment cap, or null.
+     * @param renewalStartMonth The renewal window start month, or null.
+     * @param renewalEndMonth   The renewal window end month, or null.
+     */
+    private void validateCommunityParams(BigDecimal monthlyCap, Integer enrollmentCap,
+                                         Integer renewalStartMonth, Integer renewalEndMonth) {
+        if (monthlyCap != null && monthlyCap.signum() < 0) {
+            throw new AdminException("The monthly cap cannot be negative");
+        }
+        if (enrollmentCap != null && enrollmentCap < 0) {
+            throw new AdminException("The enrollment cap cannot be negative");
+        }
+        if ((renewalStartMonth == null) != (renewalEndMonth == null)) {
+            throw new AdminException("A renewal window needs both its start and end months");
+        }
+        for (Integer month : new Integer[]{renewalStartMonth, renewalEndMonth}) {
+            if (month != null && (month < 1 || month > 12)) {
+                throw new AdminException("A renewal month must be between 1 and 12");
+            }
+        }
+    }
+
     /**
      * Upserts a community membership over a window; enforces the enrollment cap on a new
      * membership (§28.4).
@@ -316,6 +550,10 @@ public class AdminService {
         }
         FidelityMembership existing = FidelityMembership.find(
                 "account = ?1 and community = ?2 and validFrom = ?3", account, community, validFrom).firstResult();
+        if (existing == null && !community.active) {
+            throw new AdminException("Community '" + communityCode
+                    + "' is closed to new enrollments (§23.2)");
+        }
         if (existing == null && community.enrollmentCap != null) {
             long active = FidelityMembership.count(
                     "community = ?1 and (validTo is null or validTo >= ?2)", community, clock.today());
@@ -337,7 +575,8 @@ public class AdminService {
      * Replaces the whole membership set of a community from the workbench submission
      * (§23.2) — the screen is the complete source of truth, so a member absent from the
      * submission is removed (deletion by omission, §21.3). Enforces the enrollment cap on
-     * the submitted size (§28.4) and ignores an entry whose card is unknown.
+     * the submitted size (§28.4), refuses new members when the community is closed to
+     * enrollments (§23.2), and ignores an entry whose card is unknown.
      *
      * @param communityCode The community code.
      * @param entries       The complete membership set.
@@ -348,6 +587,21 @@ public class AdminService {
         FidelityCommunity community = FidelityCommunity.findByCode(communityCode);
         if (community == null) {
             throw new AdminException("Unknown community '" + communityCode + "'");
+        }
+        if (!community.active) {
+            java.util.Set<String> existingCards = new java.util.HashSet<>();
+            for (FidelityMembership membership : FidelityMembership.<FidelityMembership>list("community", community)) {
+                if (membership.account != null) {
+                    existingCards.add(membership.account.cardNumber);
+                }
+            }
+            for (MembershipInput entry : entries) {
+                if (entry != null && entry.card != null && !existingCards.contains(entry.card.trim())) {
+                    throw new AdminException("Community '" + communityCode
+                            + "' is closed to new enrollments: card " + entry.card.trim()
+                            + " cannot be added (§23.2)");
+                }
+            }
         }
         List<MembershipInput> valid = new java.util.ArrayList<>();
         for (MembershipInput entry : entries) {

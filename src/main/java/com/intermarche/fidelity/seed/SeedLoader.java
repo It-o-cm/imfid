@@ -2,6 +2,7 @@ package com.intermarche.fidelity.seed;
 
 import com.intermarche.fidelity.domain.Product;
 import com.intermarche.fidelity.imports.*;
+import io.quarkus.arc.profile.UnlessBuildProfile;
 import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.Priority;
 import jakarta.enterprise.context.ApplicationScoped;
@@ -24,8 +25,13 @@ import java.util.function.Function;
  * <p>
  * The observer runs after the rule registry has initialized ({@code @Priority} above the
  * default) so the FIDELITY_RULES import validates against the deployed factories (§12).
+ * <p>
+ * Excluded from the dev and test build profiles, where the programmatic
+ * {@link DataInitializer} wipes and reloads its own enriched dataset at every startup —
+ * running both would double-seed.
  */
 @ApplicationScoped
+@UnlessBuildProfile(anyOf = {"dev", "test"})
 public class SeedLoader {
 
     private static final Logger LOGGER = Logger.getLogger(SeedLoader.class);

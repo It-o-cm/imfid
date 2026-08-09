@@ -1,0 +1,62 @@
+{#include ui/layout}
+{#title}{view.title} — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>{view.title}</h1>
+        <p class="page-sub">Compte opérateur (§24.1) — rôles pos / fid-admin, connexion par mot de passe.</p>
+    </div>
+    <div class="page-actions"><a class="btn btn-ghost" href="/ui/users">← Liste</a></div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<form class="card stacked-form" method="post" action="{view.action}">
+    <div class="card-title-row"><h2 class="card-title">Identité</h2></div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Login <em>*</em></span>
+            {#if view.editMode}
+            <input class="input-control" type="text" value="{view.username}" disabled>
+            {#else}
+            <input class="input-control" type="text" name="username" value="{view.username}" required maxlength="60" autocomplete="off">
+            {/if}
+            <span class="field-hint">{#if view.editMode}Le login ne peut pas être modifié.{#else}Sert à se connecter.{/if}</span>
+        </label>
+        <label class="field"><span class="field-label">Nom affiché</span>
+            <input class="input-control" type="text" name="displayName" value="{view.displayName}" maxlength="100"></label>
+        <label class="field"><span class="field-label">E-mail</span>
+            <input class="input-control" type="email" name="email" value="{view.email}" maxlength="190">
+            <span class="field-hint">Reçoit les liens de réinitialisation (§24.1) ; laissez vide pour un compte machine.</span>
+        </label>
+    </div>
+
+    <div class="card-title-row" style="margin-top:8px"><h2 class="card-title">Mot de passe</h2></div>
+    <div class="field-grid">
+        <label class="field"><span class="field-label">Mot de passe {#if !view.editMode}<em>*</em>{/if}</span>
+            <input class="input-control" type="password" name="password" autocomplete="new-password" {#if !view.editMode}required{/if}>
+            <span class="field-hint">{#if view.editMode}Laissez vide pour conserver le mot de passe actuel. En saisir un impose à l'utilisateur d'en choisir un nouveau à sa prochaine connexion.{#else}8 caractères minimum. L'utilisateur devra le remplacer à sa première connexion.{/if}</span>
+        </label>
+    </div>
+
+    <div class="card-title-row" style="margin-top:8px"><h2 class="card-title">Accès</h2></div>
+    <div class="role-grid">
+        {#for role in view.allRoles}
+        <label class="role-option">
+            <input type="checkbox" name="roles" value="{role}" {#if view.granted(role)}checked{/if}>
+            <span>
+                <span class="role-name">{role}</span>
+                <span class="role-desc">{#if role == 'pos'}API caisse : /earn, réservations, comptes, ingestion (§24.1, §27).{#else}Administration : imports, mutations GraphQL, batches et IHM d'admin.{/if}</span>
+            </span>
+        </label>
+        {/for}
+    </div>
+    <label class="toggle-row"><input type="checkbox" name="active" value="true" {#if view.active}checked{/if}>&nbsp;<span class="field-label">Compte activé</span></label>
+
+    {#if view.canWrite}
+    <div class="form-actions"><button class="btn btn-primary" type="submit">{view.submitLabel}</button></div>
+    {/if}
+</form>
+{/body}
+{/include}

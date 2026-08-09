@@ -55,7 +55,7 @@
     <tbody>
     {#for row in view.rows}
     <tr>
-        <td class="link-strong">{row.code}</td>
+        <td><a class="link-strong" href="/ui/rules/{row.code}">{row.code}</a></td>
         <td class="col-muted">{row.type}</td>
         <td>{row.label}</td>
         <td class="col-muted">{row.validFrom} → {#if row.validTo}{row.validTo}{#else}—{/if}</td>
@@ -63,12 +63,10 @@
         <td><span class="badge {row.badgeClass}">{row.state}</span></td>
         {#if view.canWrite}
         <td class="col-actions">
-            <a class="btn btn-small" href="/ui/rules/new?from={row.code}">Dupliquer</a>
-            {#if row.state == 'ACTIVE' || row.state == 'UPCOMING'}
-            <form method="post" action="/ui/rules/{row.code}/close" onsubmit="return confirm('Fermer la règle {row.code} à aujourd\'hui ? Sa spécification deviendra immuable.');">
-                <button class="btn btn-small btn-danger" type="submit">Fermer</button>
-            </form>
+            {#if row.state == 'UPCOMING'}
+            <a class="btn btn-small" href="/ui/rules/{row.code}/edit">Éditer</a>
             {/if}
+            <a class="btn btn-small" href="/ui/rules/new?from={row.code}">Dupliquer</a>
         </td>
         {/if}
     </tr>

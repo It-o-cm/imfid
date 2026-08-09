@@ -17,6 +17,9 @@
     {#if error}
     <div class="alert alert-error" role="alert">Identifiants invalides.</div>
     {/if}
+    {#if reset}
+    <div class="alert alert-ok" role="alert">Votre mot de passe a été modifié. Vous pouvez vous connecter.</div>
+    {/if}
 
     <form class="login-form" method="post" action="/j_security_check">
         <label class="field">
@@ -31,6 +34,10 @@
 
         <button class="btn btn-primary login-submit" type="submit">Se connecter</button>
     </form>
+
+    <p class="field-hint" style="margin-top:14px;text-align:center">
+        <a href="/ui/forgot">Mot de passe oublié ?</a>
+    </p>
 </main>
 </body>
 </html>

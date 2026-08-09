@@ -34,7 +34,10 @@ import java.util.TreeSet;
  * fields are generated from the factory's JSON Schema with its {@code x-widget}
  * annotations (§21.3), and a Form/JSON toggle keeps the raw data reachable. The central
  * gesture is duplicate → adjust → close the old one (§23.3); a rule is never deleted and
- * a closed rule is never modified (§13, §18). POST → 303 → notice throughout (§21.3).
+ * a closed rule is never modified (§13, §18). Every rule stays consultable on a read-only
+ * sheet, and the one sound exception to immutability is the in-place edition of a rule
+ * not yet entered into force — it has no history and no replay depends on it (§18).
+ * POST → 303 → notice throughout (§21.3).
  */
 @Path("/ui/rules")
 @RunOnVirtualThread
@@ -79,18 +82,12 @@ public class RuleUiResource {
         static native TemplateInstance list(ListView<RuleRow> view);
 
         /**
-         * The schema-driven rule form template.
+         * The schema-driven rule form template (creation and edition modes).
          *
-         * @param canWrite       Whether the user may write.
-         * @param schemasJson    The aggregated schemas JSON.
-         * @param communitiesJson The community codes JSON.
-         * @param types          The registered rule types.
-         * @param source         The duplicated source specification, or empty.
-         * @param prefillCode    The prefilled code (for a duplicate), or empty.
+         * @param view The form view model.
          * @return The rendered form.
          */
-        static native TemplateInstance form(boolean canWrite, String schemasJson, String communitiesJson,
-                                            Set<String> types, String source, String prefillCode);
+        static native TemplateInstance form(RuleFormView view);
     }
 
     /**
@@ -153,25 +150,122 @@ public class RuleUiResource {
      * Renders the schema-driven creation form, optionally prefilled from a source rule to
      * duplicate (§23.3).
      *
-     * @param from The source code to duplicate the specification from, or blank.
-     * @param sc   The security context.
+     * @param from     The source code to duplicate the specification from, or blank.
+     * @param notice   A one-shot notice.
+     * @param noticeOk Whether the notice reports a success.
+     * @param sc       The security context.
      * @return The rendered form.
      */
     @GET
     @Path("/new")
     @Produces(MediaType.TEXT_HTML)
-    public TemplateInstance form(@QueryParam("from") String from, @Context SecurityContext sc) {
-        String source = "";
-        String prefillCode = "";
+    public TemplateInstance form(@QueryParam("from") String from,
+                                 @QueryParam("notice") String notice, @QueryParam("noticeOk") boolean noticeOk,
+                                 @Context SecurityContext sc) {
+        RuleFormView view = RuleFormView.creation(buildSchemasJson(), buildCommunitiesJson(),
+                new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
         if (from != null && !from.isBlank()) {
             FidelityRule src = FidelityRule.findByCode(from.trim());
             if (src != null) {
-                source = src.specification;
-                prefillCode = src.code + "_V2";
+                view.code = src.code + "_V2";
+                view.type = src.type;
+                view.specification = src.specification;
             }
         }
-        return Templates.form(UiSupport.canWrite(sc), buildSchemasJson(), buildCommunitiesJson(),
-                new TreeSet<>(registry.registeredTypes()), source == null ? "" : source, prefillCode);
+        view.notice = notice;
+        view.noticeOk = noticeOk;
+        return Templates.form(view);
+    }
+
+    /**
+     * Renders the read-only rule sheet (§23.3): the very same schema-driven form as
+     * edition, prefilled and frozen — same labels, widgets and percent conversions —
+     * with the Form/JSON toggle keeping the raw specification inspectable.
+     *
+     * @param code     The rule code.
+     * @param notice   A one-shot notice.
+     * @param noticeOk Whether the notice reports a success.
+     * @param sc       The security context.
+     * @return The rendered sheet, or a redirect to the list when the code is unknown.
+     */
+    @GET
+    @Path("/{code}")
+    @Produces(MediaType.TEXT_HTML)
+    public Response detail(@PathParam("code") String code,
+                           @QueryParam("notice") String notice, @QueryParam("noticeOk") boolean noticeOk,
+                           @Context SecurityContext sc) {
+        FidelityRule rule = FidelityRule.findByCode(code);
+        if (rule == null) {
+            return UiSupport.redirect("/ui/rules", "Unknown rule '" + code + "'", false);
+        }
+        RuleFormView view = RuleFormView.consultation(rule, clock.now(), buildSchemasJson(),
+                buildCommunitiesJson(), new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
+        view.notice = notice;
+        view.noticeOk = noticeOk;
+        return Response.ok(Templates.form(view)).build();
+    }
+
+    /**
+     * Renders the edition form of a rule not yet entered into force (§18); any other
+     * rule is redirected to its sheet with an explanation — versioning applies instead.
+     *
+     * @param code     The rule code.
+     * @param notice   A one-shot notice.
+     * @param noticeOk Whether the notice reports a success.
+     * @param sc       The security context.
+     * @return The rendered form, or a redirect when the rule is unknown or already in force.
+     */
+    @GET
+    @Path("/{code}/edit")
+    @Produces(MediaType.TEXT_HTML)
+    public Response edit(@PathParam("code") String code,
+                         @QueryParam("notice") String notice, @QueryParam("noticeOk") boolean noticeOk,
+                         @Context SecurityContext sc) {
+        FidelityRule rule = FidelityRule.findByCode(code);
+        if (rule == null) {
+            return UiSupport.redirect("/ui/rules", "Unknown rule '" + code + "'", false);
+        }
+        if (!clock.now().isBefore(rule.validFrom)) {
+            return UiSupport.redirect("/ui/rules/" + code,
+                    "Only a rule not yet in force can be edited; duplicate then close instead (§18)", false);
+        }
+        RuleFormView view = RuleFormView.edition(rule, buildSchemasJson(), buildCommunitiesJson(),
+                new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
+        view.notice = notice;
+        view.noticeOk = noticeOk;
+        return Response.ok(Templates.form(view)).build();
+    }
+
+    /**
+     * Updates a rule not yet entered into force from the schema-driven form (§18, §23.3).
+     *
+     * @param code          The code of the rule to update (frozen identity).
+     * @param type          The rule type.
+     * @param label         The printed label.
+     * @param validFrom     The window start (ISO date-time).
+     * @param validTo       The window end, or blank.
+     * @param priority      The priority.
+     * @param exclusive     Whether exclusive.
+     * @param cap           The per-card cap, or blank.
+     * @param active        Whether active.
+     * @param specification The JSON specification (built by the form JS).
+     * @return A redirect with a notice.
+     */
+    @POST
+    @Path("/{code}/update")
+    @Transactional
+    public Response update(@PathParam("code") String code, @FormParam("type") String type,
+                           @FormParam("label") String label, @FormParam("validFrom") String validFrom,
+                           @FormParam("validTo") String validTo, @FormParam("priority") @DefaultValue("0") int priority,
+                           @FormParam("exclusive") boolean exclusive, @FormParam("monthlyCapPerCard") String cap,
+                           @FormParam("active") boolean active, @FormParam("specification") String specification) {
+        try {
+            admin.updateRule(code, type, label, parseDateTime(validFrom), parseDateTime(validTo),
+                    priority, exclusive, parseDecimal(cap), active, specification);
+            return UiSupport.redirect("/ui/rules/" + code, "Rule " + code + " updated", true);
+        } catch (AdminException e) {
+            return UiSupport.redirect("/ui/rules/" + code + "/edit", e.getMessage(), false);
+        }
     }
 
     /**
@@ -207,21 +301,25 @@ public class RuleUiResource {
     }
 
     /**
-     * Closes an open rule (§18, §23.3).
+     * Updates the end of application of a rule whose window has not ended (§18, §23.3);
+     * a blank date clears the end (open-ended again).
      *
      * @param code    The rule code.
-     * @param validTo The window end (ISO date-time), or blank for today.
-     * @return A redirect with a notice.
+     * @param validTo The new window end (ISO date-time), or blank for open-ended.
+     * @return A redirect to the rule sheet with a notice.
      */
     @POST
-    @Path("/{code}/close")
+    @Path("/{code}/end-date")
     @Transactional
-    public Response close(@PathParam("code") String code, @FormParam("validTo") String validTo) {
+    public Response endDate(@PathParam("code") String code, @FormParam("validTo") String validTo) {
         try {
-            admin.closeRule(code, parseDateTime(validTo));
-            return UiSupport.redirect("/ui/rules", "Rule " + code + " closed", true);
+            admin.updateEndDate(code, parseDateTime(validTo));
+            String message = validTo == null || validTo.isBlank()
+                    ? "Rule " + code + ": end of application cleared (open-ended)"
+                    : "Rule " + code + ": end of application set to " + validTo.trim();
+            return UiSupport.redirect("/ui/rules/" + code, message, true);
         } catch (AdminException e) {
-            return UiSupport.redirect("/ui/rules", e.getMessage(), false);
+            return UiSupport.redirect("/ui/rules/" + code, e.getMessage(), false);
         }
     }
 

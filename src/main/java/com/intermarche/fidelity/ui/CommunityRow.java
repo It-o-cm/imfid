@@ -43,6 +43,11 @@ public final class CommunityRow {
     public Integer renewalEndMonth;
 
     /**
+     * Whether the community is open to new enrollments (§23.2).
+     */
+    public boolean active;
+
+    /**
      * Builds a community row.
      *
      * @param community     The community entity.
@@ -57,6 +62,7 @@ public final class CommunityRow {
         row.activeMembers = activeMembers;
         row.renewalStartMonth = community.renewalStartMonth;
         row.renewalEndMonth = community.renewalEndMonth;
+        row.active = community.active;
         return row;
     }
 }

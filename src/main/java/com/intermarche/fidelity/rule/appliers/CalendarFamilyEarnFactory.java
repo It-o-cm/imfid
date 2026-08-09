@@ -1,7 +1,8 @@
-package com.intermarche.fidelity.rule;
+package com.intermarche.fidelity.rule.appliers;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.intermarche.fidelity.domain.FidelityRule;
+import com.intermarche.fidelity.rule.*;
 import jakarta.enterprise.context.ApplicationScoped;
 
 import java.math.BigDecimal;

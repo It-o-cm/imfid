@@ -1,0 +1,72 @@
+{#include ui/layout}
+{#title}Règle {view.row.code} — Fidélité admin{/title}
+{#body}
+<div class="page-head">
+    <div>
+        <h1>Règle {view.row.code}</h1>
+        <p class="page-sub"><span class="badge {view.row.badgeClass}">{view.row.state}</span> — {view.row.label}</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-ghost" href="/ui/rules">← Liste</a>
+    </div>
+</div>
+
+{#if view.hasNotice}
+<div class="alert {#if view.noticeOk}alert-ok{#else}alert-error{/if}">{view.notice}</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Fiche</h2></div>
+    <div class="field-grid">
+        <div class="field"><span class="field-label">Type</span><span>{view.row.type}</span></div>
+        <div class="field"><span class="field-label">Libellé (ticket)</span><span>{view.row.label}</span></div>
+        <div class="field"><span class="field-label">Fenêtre de validité</span><span>{view.row.validFrom} → {#if view.row.validTo}{view.row.validTo}{#else}—{/if}</span></div>
+        <div class="field"><span class="field-label">Priorité</span><span>{view.row.priority}</span></div>
+        <div class="field"><span class="field-label">Exclusive (consomme ses lignes)</span><span>{#if view.exclusive}Oui{#else}Non{/if}</span></div>
+        <div class="field"><span class="field-label">Plafond mensuel / carte</span><span>{#if view.monthlyCapPerCard}{view.monthlyCapPerCard} €{#else}—{/if}</span></div>
+        <div class="field"><span class="field-label">Active</span><span>{#if view.active}Oui{#else}Non{/if}</span></div>
+        <div class="field"><span class="field-label">Créée le</span><span>{view.createdAt}</span></div>
+        <div class="field"><span class="field-label">Modifiée le</span><span>{view.updatedAt}</span></div>
+    </div>
+</div>
+
+{#if view.hasTiers}
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Paliers</h2></div>
+    <table class="data-table">
+        <thead><tr><th>#</th><th>Seuil</th><th>Taux (fraction)</th><th>Gain fixe (€)</th><th>Mission requise</th></tr></thead>
+        <tbody>
+        {#for t in view.tiers}
+        <tr><td>{t.rank}</td><td>{t.threshold ?: '—'}</td><td>{t.rate ?: '—'}</td><td>{t.rewardAmount ?: '—'}</td><td>{#if t.missionRequired}Oui{#else}Non{/if}</td></tr>
+        {/for}
+        </tbody>
+    </table>
+</div>
+{/if}
+
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Spécification (JSON)</h2></div>
+    <pre class="import-report">{view.specification}</pre>
+</div>
+
+{#if view.canWrite}
+<div class="card">
+    <div class="card-title-row"><h2 class="card-title">Actions</h2></div>
+    <div class="form-actions">
+        {#if view.editable}
+        <a class="btn btn-primary" href="/ui/rules/{view.row.code}/edit">Éditer</a>
+        {/if}
+        <a class="btn" href="/ui/rules/new?from={view.row.code}">Dupliquer</a>
+        {#if view.open}
+        <form method="post" action="/ui/rules/{view.row.code}/close" onsubmit="return confirm('Fermer la règle {view.row.code} à aujourd\'hui ? Sa spécification deviendra immuable.');">
+            <button class="btn btn-danger" type="submit">Fermer</button>
+        </form>
+        {/if}
+    </div>
+    {#if !view.editable}
+    <p class="field-hint">Une règle entrée en vigueur n'est jamais modifiée : dupliquez-la, ajustez la copie, puis fermez l'ancienne (§18, §23.3).</p>
+    {/if}
+</div>
+{/if}
+{/body}
+{/include}

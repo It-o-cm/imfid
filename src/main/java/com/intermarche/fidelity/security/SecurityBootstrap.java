@@ -47,6 +47,13 @@ public class SecurityBootstrap {
     String adminPassword;
 
     /**
+     * The bootstrap administrator e-mail address, receiving the password-reset links
+     * (§24.1); the {@code pos} machine account carries none on purpose.
+     */
+    @ConfigProperty(name = "imfid.bootstrap.admin.email", defaultValue = "admin@imfid.local")
+    String adminEmail;
+
+    /**
      * Creates the bootstrap accounts at startup when none exists yet (§24.1).
      *
      * @param event The Quarkus startup event.
@@ -56,27 +63,35 @@ public class SecurityBootstrap {
         if (AppUser.count() > 0) {
             return;
         }
-        createUser(posUsername, posPassword, AppUser.ROLE_POS, "POS API");
-        createUser(adminUsername, adminPassword, AppUser.ROLE_FID_ADMIN, "Fidelity administrator");
+        // The pos account is a machine login (HTTP Basic, no browser): it never reaches the
+        // change screen, so it keeps its seeded credential. The admin account is a human
+        // login whose password is versioned/known here, so it must be replaced at first
+        // sign-in (§24.1) — the redirect is relaxed in dev/test.
+        createUser(posUsername, posPassword, AppUser.ROLE_POS, "POS API", null, false);
+        createUser(adminUsername, adminPassword, AppUser.ROLE_FID_ADMIN, "Fidelity administrator", adminEmail, true);
         LOGGER.infof("Bootstrap users created: '%s' (pos), '%s' (fid-admin)", posUsername, adminUsername);
     }
 
     /**
      * Creates and persists one operator account with a hashed password.
      *
-     * @param username    The login name.
-     * @param password    The clear-text password (hashed before storage).
-     * @param role        The granted role.
-     * @param displayName The display name.
+     * @param username           The login name.
+     * @param password           The clear-text password (hashed before storage).
+     * @param role               The granted role.
+     * @param displayName        The display name.
+     * @param email              The password-reset e-mail address, or null for machine accounts.
+     * @param mustChangePassword Whether the operator must replace this password at first sign-in.
      */
-    private void createUser(String username, String password, String role, String displayName) {
+    private void createUser(String username, String password, String role, String displayName, String email,
+                            boolean mustChangePassword) {
         AppUser user = new AppUser();
         user.username = username;
         user.setPassword(password);
         user.roles = role;
         user.displayName = displayName;
+        user.email = email;
         user.active = true;
-        user.mustChangePassword = false;
+        user.mustChangePassword = mustChangePassword;
         user.persist();
     }
 }
