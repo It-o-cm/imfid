@@ -2,6 +2,8 @@ package com.intermarche.fidelity.domain;
 
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.util.List;
 import java.util.Objects;
@@ -43,7 +45,7 @@ public class PendingReturn extends BaseEntity {
      * The full return event payload, stored verbatim so it can be replayed as is when
      * the origin arrives (§29.3).
      */
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "payload", nullable = false)
     public String payload;
 

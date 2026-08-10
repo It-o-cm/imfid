@@ -2,6 +2,8 @@ package com.intermarche.fidelity.domain;
 
 import io.quarkus.panache.common.Page;
 import jakarta.persistence.*;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -122,14 +124,14 @@ public class EarnTrace extends BaseEntity {
     /**
      * The {@code /valuation} request of the fiscal event, stored verbatim (§26.1).
      */
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "request_payload")
     public String requestPayload;
 
     /**
      * The {@code /valuation} response of the fiscal event, stored verbatim (§26.1).
      */
-    @Lob
+    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
     @Column(name = "response_payload")
     public String responsePayload;
 
