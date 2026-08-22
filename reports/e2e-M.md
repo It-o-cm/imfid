@@ -1,6 +1,6 @@
 # E2E group M — GraphQL d'administration (`/graphql`, Basic fid-admin) + écran Programme
 
-Class: `com.intermarche.fidelity.e2e.GroupMIT` — `@QuarkusTest` + RestAssured.
+Class: `com.intermarche.e2e.GroupMIT` — `@QuarkusTest` + RestAssured.
 Result: **5 tests, 0 failures, 0 errors, 0 skipped** (BUILD SUCCESS).
 
 Campaign command (a random test port used only because ports 8081/8060 were held by

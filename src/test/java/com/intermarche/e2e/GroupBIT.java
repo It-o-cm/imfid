@@ -1,4 +1,4 @@
-package com.intermarche.fidelity.e2e;
+package com.intermarche.e2e;
 
 import com.intermarche.fidelity.domain.AppUser;
 import com.intermarche.fidelity.domain.PasswordResetToken;

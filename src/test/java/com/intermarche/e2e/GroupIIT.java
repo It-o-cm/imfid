@@ -1,4 +1,4 @@
-package com.intermarche.fidelity.e2e;
+package com.intermarche.e2e;
 
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.domain.util.DateTimeProvider;

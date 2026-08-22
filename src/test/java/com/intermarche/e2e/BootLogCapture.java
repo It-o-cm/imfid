@@ -1,4 +1,4 @@
-package com.intermarche.fidelity.e2e;
+package com.intermarche.e2e;
 
 import io.quarkus.runtime.StartupEvent;
 import jakarta.annotation.Priority;
