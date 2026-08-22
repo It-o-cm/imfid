@@ -135,3 +135,31 @@ plafonds, prédicat de non-cumul (I1, I2).
   batchs → kit de tests → Annexe B.
 - Livrer uniquement les fichiers modifiés ; jamais de modification hors du périmètre
   demandé — toute observation hors périmètre se signale en une ligne, sans l'appliquer.
+
+## E2E scenario tests (imfid — *IT classes)
+- Spec source: e2escenarios-imfid.md at project root. One test class per
+  group letter (GroupBIT…), one @Test per scenario, the scenario id in
+  the method name and its Javadoc.
+- Tiers: unmarked scenarios = @QuarkusTest + RestAssured (Basic pos for
+  /api/*, Basic admin for imports and /graphql, form session for /ui/*).
+  [W] = @QuarkusTest + Playwright (quarkus-playwright, headless
+  Chromium). [P] = prod-like env required → @Disabled with the reason,
+  justified residue until a prod-like harness exists. [D] = default
+  dev/test profile.
+- Seeded world: the DataInitializer rebuilds the full dataset at EVERY
+  boot (wipe + reload). Never re-seed, never assume an empty base —
+  assert against the seeded facts the catalog states.
+- Date-relative data: 4th-visit/boost scenarios are invalid on the
+  1st–6th of the month. Make them deterministic by AGING the relevant
+  visit rows via QuarkusTransaction instead of skipping — never a
+  calendar-flaky test. Dated evaluations go through the payload's
+  createdAt, never the real clock.
+- Fiscal idempotence trap: every ingested event is an idempotent
+  upsert — suffix every ticketRef with a per-test unique suffix, or a
+  replay is silently absorbed.
+- Admin notices are ENGLISH on French screens — a contract of fact:
+  assert the LITERAL texts the catalog quotes. DB assertions via
+  Panache under QuarkusTransaction; never absolute ids or counters.
+- Campaign command: mvn -q verify -DskipUTs=true -Dit.test=<ClassIT>
+  -DskipITs=false.
+- The style, Javadoc, scope and reporting rules of this file apply.
