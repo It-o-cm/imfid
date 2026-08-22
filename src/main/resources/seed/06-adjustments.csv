@@ -1,5 +1,8 @@
 reference|cardNumber|amount|movementDate|reason
-SEED-001|LOYALTY-DEMO-001|50.00|2026-06-01|Préparation démo (solde initial)
-SEED-002|LOYALTY-DEMO-002|12.50|2026-06-01|Préparation démo (solde initial)
-SEED-003|LOYALTY-DEMO-003|20.00|2026-06-01|Préparation démo (solde initial)
-SEED-004|LOYALTY-DEMO-004|5.00|2026-07-20|Préparation démo (cumul avant activation)
+QUAL-001|2990000000019|56.70|2026-08-01|Solde initial qualif (équivalent du ledger de démo)
+QUAL-002|2990000000026|18.50|2026-08-01|Solde initial qualif (membre Bébés)
+QUAL-003|2990000000033|24.00|2026-08-01|Solde initial qualif (membre Étudiants)
+QUAL-004|2990000000040|5.00|2026-08-01|Cumul avant activation (compte en attente)
+QUAL-005|2990000000057|-1.70|2026-08-01|Solde négatif de démonstration (retour au-delà du solde, I7)
+QUAL-006|2990000000071|15.00|2026-08-01|Solde transféré depuis 2990000000064
+QUAL-007|2990000000088|30.00|2026-08-01|Solde initial qualif

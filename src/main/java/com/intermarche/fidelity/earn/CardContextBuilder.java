@@ -147,9 +147,10 @@ public class CardContextBuilder {
             if (rule == null || !FidelityRule.TYPE_CHALLENGE_EARN.equals(rule.type)) {
                 continue;
             }
-            LocalDate from = activation.periodStart != null ? activation.periodStart : evalDate;
+            // periodStart is non-null here: isActiveOn(evalDate) above returns false
+            // (and the loop continues) when it is null — besides being schema-mandatory.
             BigDecimal base = com.intermarche.fidelity.domain.EarnTraceLine.sumBaseForRule(
-                    cardNumber, activation.ruleCode, from, evalDate);
+                    cardNumber, activation.ruleCode, activation.periodStart, evalDate);
             bases.put(activation.ruleCode, base);
         }
         return bases;

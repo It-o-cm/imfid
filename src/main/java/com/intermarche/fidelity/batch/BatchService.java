@@ -157,6 +157,11 @@ public class BatchService {
      * Computes the residual balance of an account attributable to earnYears at or before
      * a year, after a FIFO consumption of the debits from the oldest year first (§16,
      * §28.3).
+     * <p>
+     * The result is non-negative by construction: each per-year credit is a sum of
+     * strictly positive movements ({@link FidelityMovement#creditsByEarnYear}), the
+     * debit total is non-negative, and {@code credit - min(debits, credit)} therefore
+     * never goes below zero — no defensive clamp is needed.
      *
      * @param account    The account.
      * @param expireYear The last earnYear to include in the residual.
@@ -175,7 +180,7 @@ public class BatchService {
                 residualOld = residualOld.add(residual);
             }
         }
-        return residualOld.signum() < 0 ? BigDecimal.ZERO : residualOld;
+        return residualOld;
     }
 
     /**

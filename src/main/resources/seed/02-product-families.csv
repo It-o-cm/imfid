@@ -1,2 +1,7 @@
 code|description|flags|product_eans|family_codes
-F_L|Fruits & Légumes frais||3300000000001,3300000000014|
+F_L|Fruits & Légumes frais||3300000000001,3300000000014,3300000000017,3300000000018|
+RAYON_BEBE|Rayon Bébé||3400000000010,3400000000011|
+HYGIENE_FEM|Hygiène féminine||3300000000027,3400000000030|
+RAYON_ECOUPON|Rayon e-coupon (animalerie)||3400000000040|
+ALCOOL|Alcools (exclus Petits Budgets)||3400000000050|
+CARTES_CADEAUX|Cartes cadeaux (exclusion CGU)||3400000000060|

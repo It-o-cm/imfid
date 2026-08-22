@@ -316,7 +316,9 @@ public abstract class AbstractEarnRuleApplier implements EarnRuleApplier {
     }
 
     /**
-     * Reads a string field from the specification root.
+     * Reads a string field from the specification root. Under the {@code isTextual}
+     * guard, {@code asText()} is never null (a JSON null is a {@code NullNode},
+     * already excluded): only blankness needs normalizing.
      *
      * @param field The field name.
      * @return The trimmed value, or null when absent or blank.
@@ -327,7 +329,7 @@ public abstract class AbstractEarnRuleApplier implements EarnRuleApplier {
             return null;
         }
         String value = node.asText();
-        return value == null || value.isBlank() ? null : value.trim();
+        return value.isBlank() ? null : value.trim();
     }
 
     /**
@@ -378,10 +380,12 @@ public abstract class AbstractEarnRuleApplier implements EarnRuleApplier {
         Set<String> values = new HashSet<>();
         JsonNode node = parent == null ? null : parent.get(field);
         if (node != null && node.isArray()) {
+            // Iterating a Jackson array never yields a Java null, and a textual
+            // node's asText() is never null: the JSON guards alone are needed.
             for (JsonNode element : node) {
-                if (element != null && element.isTextual()) {
+                if (element.isTextual()) {
                     String value = element.asText();
-                    if (value != null && !value.isBlank()) {
+                    if (!value.isBlank()) {
                         values.add(value.trim());
                     }
                 }

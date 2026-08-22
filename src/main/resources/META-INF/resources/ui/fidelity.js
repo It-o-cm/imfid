@@ -90,3 +90,75 @@
         document.querySelectorAll('svg.ean13').forEach(draw);
     });
 })();
+
+/*
+ * Imports screen — drag & drop onto the deposit zone.
+ *
+ * The dashed zone visually promises a drop target; this wires it for real: a
+ * file dragged anywhere onto .import-drop lands in the file input, and the
+ * import domain is preselected from the file name when recognizable (the seed
+ * files 01-products.csv … 09-memberships.csv all are). Manual selection keeps
+ * working unchanged.
+ */
+(function () {
+    'use strict';
+
+    var zone = document.querySelector('.import-drop');
+    if (!zone) { return; }
+    var fileInput = zone.querySelector('input[type="file"]');
+    var domainSel = zone.querySelector('select[name="domain"]');
+    if (!fileInput) { return; }
+
+    // Ordered patterns: first match wins — 'famil' must be tested before
+    // 'product' because 'product-families' carries both tokens.
+    var DOMAINS = [
+        ['famil', 'PRODUCT_FAMILIES'],
+        ['product', 'PRODUCTS'],
+        ['communit', 'FIDELITY_COMMUNITIES'],
+        ['rule', 'FIDELITY_RULES'],
+        ['account', 'FIDELITY_ACCOUNTS'],
+        ['membership', 'MEMBERSHIPS'],
+        ['adjust', 'FIDELITY_ADJUSTMENTS'],
+        ['activation', 'FIDELITY_ACTIVATIONS'],
+        ['visit', 'FIDELITY_VISITS']
+    ];
+
+    /**
+     * Preselects the import domain from a dropped/chosen file name.
+     * @param {string} name the file name
+     */
+    function preselectDomain(name) {
+        if (!domainSel || !name) { return; }
+        var lower = name.toLowerCase();
+        for (var i = 0; i < DOMAINS.length; i++) {
+            if (lower.indexOf(DOMAINS[i][0]) >= 0) {
+                domainSel.value = DOMAINS[i][1];
+                return;
+            }
+        }
+    }
+
+    ['dragenter', 'dragover'].forEach(function (type) {
+        zone.addEventListener(type, function (e) {
+            e.preventDefault();
+            zone.classList.add('is-dragover');
+        });
+    });
+    zone.addEventListener('dragleave', function (e) {
+        if (!zone.contains(e.relatedTarget)) {
+            zone.classList.remove('is-dragover');
+        }
+    });
+    zone.addEventListener('drop', function (e) {
+        e.preventDefault();
+        zone.classList.remove('is-dragover');
+        if (!e.dataTransfer || !e.dataTransfer.files || !e.dataTransfer.files.length) { return; }
+        fileInput.files = e.dataTransfer.files;
+        preselectDomain(e.dataTransfer.files[0].name);
+    });
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files.length) {
+            preselectDomain(fileInput.files[0].name);
+        }
+    });
+})();

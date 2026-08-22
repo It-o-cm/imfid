@@ -170,14 +170,15 @@ class ChallengeEarnApplier extends AbstractEarnRuleApplier {
 
     /**
      * Parses the {@code tiers} array into ascending-threshold tiers, guarding
-     * malformed entries (§31.2).
+     * malformed entries (§31.2). Iterating a Jackson array never yields a Java null
+     * ({@code isObject()} alone also rejects a JSON {@code null}, a {@code NullNode}).
      *
      * @return The tiers, never null.
      */
     private List<Tier> parseTiers() {
         List<Tier> parsed = new ArrayList<>();
         for (JsonNode node : tiersNode()) {
-            if (node == null || !node.isObject()) {
+            if (!node.isObject()) {
                 continue;
             }
             BigDecimal threshold = readDecimal(node, "threshold");

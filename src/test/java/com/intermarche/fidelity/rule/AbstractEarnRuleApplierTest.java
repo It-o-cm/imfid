@@ -7,13 +7,15 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ArrayNode;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.domain.Product;
 import com.intermarche.fidelity.domain.ProductFamily;
 import com.intermarche.fidelity.domain.ProductType;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -250,46 +252,28 @@ class AbstractEarnRuleApplierTest {
     }
 
     /**
-     * The private {@code readStringSet} skips a null array element — the §31.2 null guard on
-     * the parser, reached with a hand-built array node whose single element is null
-     * (element != null false leg).
+     * The private {@code readStringSet} skips a JSON {@code null} element and a blank
+     * text, and trims the kept values — exercised with REAL Jackson structures only:
+     * iterating an {@code ArrayNode} never yields a Java null (a JSON {@code null} is
+     * a {@code NullNode}) and a textual node's {@code asText()} is never null, which
+     * is why the former Java-null guards were removed as unreachable dead branches.
      *
      * @throws Exception when the reflective invocation fails.
      */
     @Test
-    @DisplayName("readStringSet skips a null array element")
-    void readStringSetSkipsNullElement() throws Exception {
-        JsonNode parent = Mockito.mock(JsonNode.class);
-        JsonNode array = Mockito.mock(JsonNode.class);
-        Mockito.when(parent.get("brands")).thenReturn(array);
-        Mockito.when(array.isArray()).thenReturn(true);
-        Mockito.when(array.iterator()).thenReturn(Collections.singletonList((JsonNode) null).iterator());
+    @DisplayName("readStringSet skips JSON nulls and blanks, trims kept values")
+    void readStringSetSkipsJsonNullsAndBlanks() throws Exception {
+        ObjectMapper mapper = new ObjectMapper();
+        ObjectNode parent = mapper.createObjectNode();
+        ArrayNode array = parent.putArray("brands");
+        array.add("ACME");
+        array.addNull();
+        array.add(42);
+        array.add("");
+        array.add("  Paquito  ");
         Object result = invokePrivateStatic("readStringSet",
                 new Class<?>[]{JsonNode.class, String.class}, parent, "brands");
-        assertTrue(((Set<?>) result).isEmpty());
-    }
-
-    /**
-     * The private {@code readStringSet} skips a textual element whose text reads null — the
-     * §31.2 null guard on the parsed value (value != null false leg), reached with a
-     * hand-built element returning a null text.
-     *
-     * @throws Exception when the reflective invocation fails.
-     */
-    @Test
-    @DisplayName("readStringSet skips an element with null text")
-    void readStringSetSkipsNullText() throws Exception {
-        JsonNode parent = Mockito.mock(JsonNode.class);
-        JsonNode array = Mockito.mock(JsonNode.class);
-        JsonNode element = Mockito.mock(JsonNode.class);
-        Mockito.when(parent.get("brands")).thenReturn(array);
-        Mockito.when(array.isArray()).thenReturn(true);
-        Mockito.when(array.iterator()).thenReturn(Collections.singletonList(element).iterator());
-        Mockito.when(element.isTextual()).thenReturn(true);
-        Mockito.when(element.asText()).thenReturn(null);
-        Object result = invokePrivateStatic("readStringSet",
-                new Class<?>[]{JsonNode.class, String.class}, parent, "brands");
-        assertTrue(((Set<?>) result).isEmpty());
+        assertEquals(Set.of("ACME", "Paquito"), result);
     }
 
     // --------------------------------------------------

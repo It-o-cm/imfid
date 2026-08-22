@@ -8,10 +8,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.intermarche.fidelity.domain.FidelityAccount;
 import com.intermarche.fidelity.domain.FidelityActivation;
 import com.intermarche.fidelity.domain.FidelityRule;
-import com.intermarche.fidelity.rule.CardContext;
-import com.intermarche.fidelity.rule.EarnEntry;
-import com.intermarche.fidelity.rule.EarnRuleApplier;
-import com.intermarche.fidelity.rule.ValuedLine;
+import com.intermarche.fidelity.rule.*;
+
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;

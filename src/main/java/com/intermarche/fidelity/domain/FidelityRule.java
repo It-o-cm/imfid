@@ -7,8 +7,6 @@ import com.intermarche.fidelity.domain.util.DateTimeProvider;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
-import org.hibernate.annotations.JdbcTypeCode;
-import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -128,7 +126,7 @@ public class FidelityRule extends BaseEntity {
      * include/exclude, or wholeStore), rate, thresholds, active days, day of
      * month, challenge tiers. Immutable once the rule is closed (§18).
      */
-    @JdbcTypeCode(SqlTypes.LONGVARCHAR)
+    @Lob
     @Column(nullable = false)
     @NotBlank(message = "Rule specification is mandatory")
     public String specification;
@@ -293,8 +291,10 @@ public class FidelityRule extends BaseEntity {
         try {
             JsonNode node = MAPPER.readTree(specification).get("communityCode");
             if (node != null && node.isTextual()) {
+                // A textual node's asText() is never null (a JSON null parses as a
+                // NullNode, already excluded by isTextual): only blankness matters.
                 String value = node.asText();
-                return value == null || value.isBlank() ? null : value.trim();
+                return value.isBlank() ? null : value.trim();
             }
         } catch (JsonProcessingException e) {
             return null;

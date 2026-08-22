@@ -119,14 +119,16 @@ class CalendarFamilyEarnApplier extends AbstractEarnRuleApplier {
     }
 
     /**
-     * Resolves a single {@code activeDays} element to a weekday, guarding null and
-     * malformed tokens (§31.2).
+     * Resolves a single {@code activeDays} element to a weekday, guarding JSON nulls
+     * and malformed tokens (§31.2). Java nulls need no guard: iterating a Jackson
+     * array never yields one (a JSON {@code null} element is a {@code NullNode}),
+     * and a textual node's {@code asText()} is never null.
      *
      * @param element The JSON element (a number or a string).
      * @return The weekday, or null when unresolved.
      */
     private static DayOfWeek toDayOfWeek(JsonNode element) {
-        if (element == null || element.isNull()) {
+        if (element.isNull()) {
             return null;
         }
         if (element.isNumber()) {
@@ -135,7 +137,8 @@ class CalendarFamilyEarnApplier extends AbstractEarnRuleApplier {
         }
         if (element.isTextual()) {
             String token = element.asText();
-            if (token == null || token.isBlank()) {
+            // A blank token would otherwise match every day: name().startsWith("") is true.
+            if (token.isBlank()) {
                 return null;
             }
             String upper = token.trim().toUpperCase();

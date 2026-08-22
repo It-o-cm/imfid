@@ -49,6 +49,10 @@ public class CardNumberGenerator {
     /**
      * Builds the 12 leading digits: the prefix followed by the sequence, zero-padded and
      * right-truncated to 12 digits.
+     * <p>
+     * When the guard falls through, the padded body is exactly 12 digits by
+     * construction: the guard guarantees {@code prefix.length() + seq.length() <= 12},
+     * so the zero fill completes the length to precisely 12 — no final clamp is needed.
      *
      * @param prefix   The reserved prefix (digits only).
      * @param sequence The sequence number.
@@ -66,7 +70,7 @@ public class CardNumberGenerator {
             padded.append('0');
         }
         padded.append(seq);
-        return padded.length() > 12 ? padded.substring(0, 12) : padded.toString();
+        return padded.toString();
     }
 
     /**
