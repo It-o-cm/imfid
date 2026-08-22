@@ -190,6 +190,14 @@
             <artifactId>rest-assured</artifactId>
             <scope>test</scope>
         </dependency>
+        <!-- Real-browser e2e ([W] scenarios): headless Chromium driven from a
+             @QuarkusTest. Same pinned version as impos. -->
+        <dependency>
+            <groupId>io.quarkiverse.playwright</groupId>
+            <artifactId>quarkus-playwright</artifactId>
+            <version>2.3.8</version>
+            <scope>test</scope>
+        </dependency>
     </dependencies>
 
     <build>
