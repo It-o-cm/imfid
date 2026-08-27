@@ -2,6 +2,7 @@ package com.intermarche.fidelity.ui;
 
 import com.intermarche.fidelity.account.AccountService;
 import com.intermarche.fidelity.account.AccountViews;
+import com.intermarche.fidelity.account.HolderService;
 import com.intermarche.fidelity.admin.AdminException;
 import com.intermarche.fidelity.admin.AdminService;
 import com.intermarche.fidelity.domain.AccountStatus;
@@ -59,6 +60,12 @@ public class CardUiResource {
      */
     @Inject
     AdminService admin;
+
+    /**
+     * The holder directory service (§33.3).
+     */
+    @Inject
+    HolderService holders;
 
     /**
      * The program clock, for the month bounds of the visit count (§25.1).
@@ -174,7 +181,8 @@ public class CardUiResource {
         List<FidelityCommunity> communities = FidelityCommunity.listAllByCode();
 
         CardDetailView view = new CardDetailView(summary, reservation, movements, current, pageCount,
-                activations, communities, UiSupport.canWrite(sc), notice, noticeOk);
+                activations, communities, holders.holderOf(account), holders.localDirectoryEnabled(),
+                UiSupport.canWrite(sc), notice, noticeOk);
         return Response.ok(Templates.detail(view)).build();
     }
 
@@ -213,6 +221,30 @@ public class CardUiResource {
         try {
             admin.adjustCard(card, amount, reason);
             return UiSupport.redirect("/ui/cards/" + card, "Adjustment posted", true);
+        } catch (AdminException e) {
+            return UiSupport.redirect("/ui/cards/" + card, e.getMessage(), false);
+        }
+    }
+
+    /**
+     * Creates or updates the holder identity of a card (§33.3).
+     *
+     * @param card      The card number.
+     * @param lastName  The holder's last name.
+     * @param firstName The holder's first name.
+     * @param phone     The holder's phone.
+     * @param email     The holder's e-mail.
+     * @return A redirect to the card sheet with a notice.
+     */
+    @POST
+    @Path("/{card}/holder")
+    @Transactional
+    public Response holder(@PathParam("card") String card, @FormParam("lastName") String lastName,
+                           @FormParam("firstName") String firstName, @FormParam("phone") String phone,
+                           @FormParam("email") String email) {
+        try {
+            holders.upsertHolder(card, lastName, firstName, phone, email);
+            return UiSupport.redirect("/ui/cards/" + card, "Holder identity saved", true);
         } catch (AdminException e) {
             return UiSupport.redirect("/ui/cards/" + card, e.getMessage(), false);
         }

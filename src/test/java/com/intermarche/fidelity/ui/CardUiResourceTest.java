@@ -15,6 +15,7 @@ import static org.mockito.Mockito.when;
 
 import com.intermarche.fidelity.account.AccountService;
 import com.intermarche.fidelity.account.AccountViews;
+import com.intermarche.fidelity.account.HolderService;
 import com.intermarche.fidelity.admin.AdminException;
 import com.intermarche.fidelity.admin.AdminService;
 import com.intermarche.fidelity.domain.AccountStatus;
@@ -95,6 +96,11 @@ class CardUiResourceTest {
     private ProgramClock clock;
 
     /**
+     * The mocked holder directory service (§33.3).
+     */
+    private HolderService holders;
+
+    /**
      * Wires a fresh resource with its mocked collaborators and a fixed clock.
      */
     @BeforeEach
@@ -103,9 +109,11 @@ class CardUiResourceTest {
         accountService = mock(AccountService.class);
         admin = mock(AdminService.class);
         clock = mock(ProgramClock.class);
+        holders = mock(HolderService.class);
         resource.accountService = accountService;
         resource.admin = admin;
         resource.clock = clock;
+        resource.holders = holders;
         when(clock.today()).thenReturn(FIXED_TODAY);
         when(clock.monthStart(any())).thenReturn(LocalDate.of(2026, 8, 1));
         when(clock.monthEnd(any())).thenReturn(LocalDate.of(2026, 8, 31));

@@ -1,6 +1,7 @@
 package com.intermarche.fidelity.ui;
 
 import com.intermarche.fidelity.account.AccountViews;
+import com.intermarche.fidelity.domain.CardHolder;
 import com.intermarche.fidelity.domain.FidelityActivation;
 import com.intermarche.fidelity.domain.FidelityCommunity;
 import com.intermarche.fidelity.domain.FidelityReservation;
@@ -52,6 +53,17 @@ public final class CardDetailView {
     public final List<FidelityCommunity> communities;
 
     /**
+     * The holder identity recorded for the card, or null when none (§33.3).
+     */
+    public final CardHolder holder;
+
+    /**
+     * Whether the local holder directory is active — false when identity is
+     * CRM-managed, hiding the holder edit form (§33.3).
+     */
+    public final boolean holderLocal;
+
+    /**
      * Whether the user may write (§21.4, §24.1).
      */
     public final boolean canWrite;
@@ -76,6 +88,8 @@ public final class CardDetailView {
      * @param movementsPageCount The number of movement pages.
      * @param activations        The card activations.
      * @param communities        The community catalogue.
+     * @param holder             The recorded holder identity, or null (§33.3).
+     * @param holderLocal        Whether the local holder directory is active (§33.3).
      * @param canWrite           Whether the user may write.
      * @param notice             A one-shot notice, or null.
      * @param noticeOk           Whether the notice reports a success.
@@ -83,6 +97,7 @@ public final class CardDetailView {
     public CardDetailView(AccountViews.Summary summary, FidelityReservation reservation,
                           AccountViews.MovementPage movements, int movementsPage, int movementsPageCount,
                           List<FidelityActivation> activations, List<FidelityCommunity> communities,
+                          CardHolder holder, boolean holderLocal,
                           boolean canWrite, String notice, boolean noticeOk) {
         this.summary = summary;
         this.reservation = reservation;
@@ -91,6 +106,8 @@ public final class CardDetailView {
         this.movementsPageCount = movementsPageCount;
         this.activations = activations;
         this.communities = communities;
+        this.holder = holder;
+        this.holderLocal = holderLocal;
         this.canWrite = canWrite;
         this.notice = notice == null ? "" : notice;
         this.noticeOk = noticeOk;

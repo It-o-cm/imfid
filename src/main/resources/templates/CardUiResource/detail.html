@@ -21,6 +21,44 @@
 </div>
 
 <div class="card">
+    <div class="card-title-row"><h2 class="card-title">Porteur</h2></div>
+    {#if view.holderLocal}
+    {#if view.canWrite}
+    <form method="post" action="/ui/cards/{view.summary.cardNumber}/holder" class="stacked-form">
+        <div class="field-grid">
+            <label class="field"><span class="field-label">Nom <em>*</em></span>
+                <input class="input-control" type="text" name="lastName" maxlength="80" required
+                       value="{#if view.holder}{view.holder.lastName}{/if}"></label>
+            <label class="field"><span class="field-label">Prénom</span>
+                <input class="input-control" type="text" name="firstName" maxlength="80"
+                       value="{#if view.holder}{view.holder.firstName ?: ''}{/if}"></label>
+            <label class="field"><span class="field-label">Téléphone</span>
+                <input class="input-control" type="tel" name="phone" maxlength="30"
+                       value="{#if view.holder}{view.holder.phone ?: ''}{/if}"></label>
+            <label class="field"><span class="field-label">E-mail</span>
+                <input class="input-control" type="email" name="email" maxlength="160"
+                       value="{#if view.holder}{view.holder.email ?: ''}{/if}"></label>
+        </div>
+        <div class="form-actions"><button class="btn btn-primary" type="submit">Enregistrer le porteur</button></div>
+    </form>
+    {#else}
+    {#if view.holder}
+    <div class="field-grid">
+        <div class="field"><span class="field-label">Nom</span><span>{view.holder.lastName}</span></div>
+        <div class="field"><span class="field-label">Prénom</span><span>{view.holder.firstName ?: '—'}</span></div>
+        <div class="field"><span class="field-label">Téléphone</span><span>{view.holder.phone ?: '—'}</span></div>
+        <div class="field"><span class="field-label">E-mail</span><span>{view.holder.email ?: '—'}</span></div>
+    </div>
+    {#else}
+    <p class="placeholder-note">Aucune identité de porteur enregistrée pour cette carte.</p>
+    {/if}
+    {/if}
+    {#else}
+    <p class="placeholder-note">Identité du porteur gérée par le CRM (§33.3) — aucune donnée nominative stockée ici.</p>
+    {/if}
+</div>
+
+<div class="card">
     <div class="card-title-row"><h2 class="card-title">Compteurs du mois</h2></div>
     <div class="field-grid">
         <div class="field"><span class="field-label">Visites</span><span>{view.summary.monthVisits}</span></div>

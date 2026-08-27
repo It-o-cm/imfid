@@ -4,6 +4,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import com.intermarche.fidelity.domain.BatchRunLog;
+import com.intermarche.fidelity.domain.CardHolder;
 import com.intermarche.fidelity.domain.EarnTrace;
 import com.intermarche.fidelity.domain.EarnTraceLine;
 import com.intermarche.fidelity.domain.FidelityAccount;
@@ -122,6 +123,7 @@ class DataInitializerTest {
                         Mockito.mockConstruction(FidelityActivation.class);
                 MockedConstruction<FidelityReservation> mcReservation =
                         Mockito.mockConstruction(FidelityReservation.class);
+                MockedConstruction<CardHolder> mcHolder = Mockito.mockConstruction(CardHolder.class);
                 MockedConstruction<EarnTrace> mcTrace = Mockito.mockConstruction(EarnTrace.class);
                 MockedConstruction<EarnTraceLine> mcTraceLine =
                         Mockito.mockConstruction(EarnTraceLine.class);
@@ -142,6 +144,7 @@ class DataInitializerTest {
             assertEquals(3, mcMembership.constructed().size());
             assertEquals(2, mcActivation.constructed().size());
             assertEquals(2, mcReservation.constructed().size());
+            assertEquals(7, mcHolder.constructed().size());
             assertEquals(9, mcTrace.constructed().size());
             assertEquals(2, mcTraceLine.constructed().size());
             assertEquals(1, mcPendingReturn.constructed().size());

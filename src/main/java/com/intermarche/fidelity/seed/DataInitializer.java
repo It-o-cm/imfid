@@ -2,6 +2,7 @@ package com.intermarche.fidelity.seed;
 
 import com.intermarche.fidelity.domain.AccountStatus;
 import com.intermarche.fidelity.domain.BatchRunLog;
+import com.intermarche.fidelity.domain.CardHolder;
 import com.intermarche.fidelity.domain.EarnTrace;
 import com.intermarche.fidelity.domain.EarnTraceLine;
 import com.intermarche.fidelity.domain.FidelityAccount;
@@ -156,6 +157,7 @@ public class DataInitializer {
         FidelityActivation.deleteAll();
         FidelityMembership.deleteAll();
         PendingReturn.deleteAll();
+        CardHolder.deleteAll();
         FidelityAccount.deleteAll();
         FidelityRuleTier.deleteAll();
         FidelityRule.deleteAll();
@@ -434,6 +436,7 @@ public class DataInitializer {
         createActivation(rich, "CHALLENGE_DEMO", monthStart, monthEnd, true);
         createReservation(rich, "10.00", ReservationState.CONFIRMED, "0101-2026-002088",
                 visit2.atTime(10, 15));
+        createHolder(rich, "Durand", "Marie", "06 12 34 56 78", "marie.durand@example.fr");
 
         // --- CARD_BABIES: community member, community earn ---
         FidelityAccount babies = createAccount(CARD_BABIES, AccountStatus.ACTIVE,
@@ -444,6 +447,7 @@ public class DataInitializer {
                 "COMMUNITY_BABIES", "0101-2026-001300", null);
         createVisit(CARD_BABIES, LocalDate.of(2026, 7, 10), "0101-2026-001300");
         createMembership(babies, "BABIES", LocalDate.of(2026, 2, 10), null);
+        createHolder(babies, "Nguyen", "Linh", "+33 6 98 76 54 32", "linh.nguyen@example.fr");
 
         // --- CARD_STUDENT: active + expired memberships, earn this month ---
         FidelityAccount student = createAccount(CARD_STUDENT, AccountStatus.ACTIVE,
@@ -455,12 +459,14 @@ public class DataInitializer {
         createVisit(CARD_STUDENT, visit3, "0101-2026-002042");
         createMembership(student, "STUDENTS", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 10, 31));
         createMembership(student, "SMALL_BUDGETS", LocalDate.of(2026, 1, 1), LocalDate.of(2026, 2, 28));
+        createHolder(student, "Lefèvre", "Théo", "07 55 44 33 22", "theo.lefevre@example.fr");
 
         // --- CARD_PENDING: accrues but cannot burn (§25.3) ---
         FidelityAccount pending = createAccount(CARD_PENDING, AccountStatus.PENDING_ACTIVATION,
                 null, now.minusDays(10));
         createMovement(pending, MovementType.ADJUSTMENT, "5.00", LocalDate.of(2026, 7, 20), 2026,
                 null, null, "Accrued before activation (seed)");
+        createHolder(pending, "Martin", "Paul", "06 00 00 00 01", null);
 
         // --- CARD_NEGATIVE: return debit beyond the remaining balance (I7) ---
         FidelityAccount negative = createAccount(CARD_NEGATIVE, AccountStatus.ACTIVE,
@@ -473,6 +479,7 @@ public class DataInitializer {
                 "FL_WEEKEND", "0101-2026-001100R", null);
         createVisit(CARD_NEGATIVE, LocalDate.of(2026, 7, 5), "0101-2026-001100");
         createVisit(CARD_NEGATIVE, LocalDate.of(2026, 7, 12), "0101-2026-001180");
+        createHolder(negative, "Durand", "Jacques", "06 12 34 56 99", "jacques.durand@example.fr");
 
         // --- CARD_LOST -> CARD_SUCCESSOR: loss/theft transfer chain (§32.2, §34.3) ---
         FidelityAccount lost = createAccount(CARD_LOST, AccountStatus.RESILIATED,
@@ -487,6 +494,7 @@ public class DataInitializer {
         createMovement(successor, MovementType.TRANSFER, "15.00", LocalDate.of(2026, 7, 1), 2026,
                 null, "TRANSFER:" + CARD_LOST + "->" + CARD_SUCCESSOR + ":2026",
                 "Transfer from " + CARD_LOST + " (earnYear 2026)");
+        createHolder(successor, "Bernard", "Sophie", "06 77 88 99 00", "sophie.bernard@example.fr");
 
         // --- CARD_RESERVED: live lease holding part of the balance (I11) ---
         FidelityAccount reserved = createAccount(CARD_RESERVED, AccountStatus.ACTIVE,
@@ -495,6 +503,7 @@ public class DataInitializer {
                 null, null, "Initial demo balance (seed)");
         createReservation(reserved, "8.00", ReservationState.ACTIVE, "0101-2026-003001",
                 now.plusMinutes(30));
+        createHolder(reserved, "García", "Ana", "0033 6 11 22 33 44", "ana.garcia@example.fr");
 
         // --- CARD_VOIDED: never activated, voided by the two-month CGU batch (§16) ---
         FidelityAccount voided = createAccount(CARD_VOIDED, AccountStatus.RESILIATED,
@@ -665,6 +674,29 @@ public class DataInitializer {
         account.lastUsedAt = lastUsedAt;
         account.persist();
         return account;
+    }
+
+    /**
+     * Creates and persists a holder identity for a demo card — the local fallback
+     * directory (§33.3). Two "Durand" rows exercise the multi-match name lookup.
+     *
+     * @param account   the account the identity belongs to
+     * @param lastName  the holder's last name
+     * @param firstName the holder's first name
+     * @param phone     the holder's phone, in a keyed-in format, or null
+     * @param email     the holder's e-mail, or null
+     */
+    private void createHolder(FidelityAccount account, String lastName, String firstName,
+                              String phone, String email) {
+        CardHolder holder = new CardHolder();
+        holder.account = account;
+        holder.lastName = lastName;
+        holder.lastNameSearch = CardHolder.searchName(lastName);
+        holder.firstName = firstName;
+        holder.phone = phone;
+        holder.phoneSearch = CardHolder.searchPhone(phone);
+        holder.email = CardHolder.normalizeEmail(email);
+        holder.persist();
     }
 
     /**

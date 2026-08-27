@@ -2,6 +2,7 @@ package com.intermarche.fidelity.ui;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -41,7 +42,7 @@ class CardDetailViewTest {
         List<FidelityActivation> activations = List.of(mock(FidelityActivation.class));
         List<FidelityCommunity> communities = List.of(mock(FidelityCommunity.class));
         CardDetailView view = new CardDetailView(summary, reservation, movements, 2, 5,
-                activations, communities, true, null, false);
+                activations, communities, null, true, true, null, false);
         assertSame(summary, view.summary);
         assertSame(reservation, view.reservation);
         assertSame(movements, view.movements);
@@ -49,6 +50,8 @@ class CardDetailViewTest {
         assertEquals(5, view.movementsPageCount);
         assertSame(activations, view.activations);
         assertSame(communities, view.communities);
+        assertNull(view.holder);
+        assertTrue(view.holderLocal);
         assertTrue(view.canWrite);
         assertEquals("", view.notice);
         assertFalse(view.noticeOk);
@@ -64,7 +67,7 @@ class CardDetailViewTest {
     @DisplayName("empty notice is kept and hasNotice is false")
     void emptyNoticeIsKeptAndHasNoticeFalse() {
         CardDetailView view = new CardDetailView(null, null, null, 0, 0,
-                List.of(), List.of(), false, "", false);
+                List.of(), List.of(), null, false, false, "", false);
         assertEquals("", view.notice);
         assertFalse(view.isHasNotice());
     }
@@ -79,7 +82,7 @@ class CardDetailViewTest {
     @DisplayName("non-empty notice is preserved and hasNotice is true")
     void nonEmptyNoticeIsPreservedAndHasNoticeTrue() {
         CardDetailView view = new CardDetailView(null, null, null, 1, 1,
-                List.of(), List.of(), true, "saved", true);
+                List.of(), List.of(), null, false, true, "saved", true);
         assertEquals("saved", view.notice);
         assertTrue(view.noticeOk);
         assertTrue(view.isHasNotice());

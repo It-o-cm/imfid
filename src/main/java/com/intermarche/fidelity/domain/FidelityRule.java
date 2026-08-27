@@ -86,6 +86,12 @@ public class FidelityRule extends BaseEntity {
     public static final String TYPE_ECOUPON_EARN = "ECOUPON_EARN";
 
     /**
+     * Factory code — fixed gain unlocked by the highest amount threshold reached
+     * by the eligible assiette of the single current ticket (§12).
+     */
+    public static final String TYPE_TICKET_THRESHOLD_EARN = "TICKET_THRESHOLD_EARN";
+
+    /**
      * Factory code — global basket filter: removes its scopes from every earn base
      * and from the burnable base (§12, §15).
      */
