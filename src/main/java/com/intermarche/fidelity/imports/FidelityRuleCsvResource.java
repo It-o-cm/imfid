@@ -33,9 +33,11 @@ import java.util.Set;
  * {@link FidelityRule} lifecycle re-materializes its {@code FidelityRuleTier} rows
  * from the specification on every write, the JSON staying the source of truth (§13).
  * <p>
- * File format (10 pipe-delimited columns, the specification last so an embedded
- * delimiter is tolerated):
- * {@code code|type|label|validFrom|validTo|priority|exclusive|monthlyCapPerCard|active|specification}.
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CODE (key), TYPE, LABEL, VALID_FROM, VALID_TO, PRIORITY,
+ * EXCLUSIVE, MONTHLY_CAP_PER_CARD, ACTIVE, SPECIFICATION — the SPECIFICATION
+ * column declared last in the header so an embedded delimiter is tolerated
+ * (the tail cells are re-joined).
  * The specification must be a single JSON object on the row. The {@code fid-admin}
  * role guard (§24.1) is attached in the security build step; the staged fallback
  * and checksum optimization come from {@link ImporterCsvResource}.
@@ -45,15 +47,31 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityRuleCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the rule CSV.
-     */
-    private static final int COLUMNS = 10;
+    /** Header name of the natural key: the rule code. */
+    static final String COL_CODE = "CODE";
+    /** Header name of the rule type (must have a deployed factory). */
+    static final String COL_TYPE = "TYPE";
+    /** Header name of the rule label. */
+    static final String COL_LABEL = "LABEL";
+    /** Header name of the validity window start. */
+    static final String COL_VALID_FROM = "VALID_FROM";
+    /** Header name of the validity window end. */
+    static final String COL_VALID_TO = "VALID_TO";
+    /** Header name of the rule priority. */
+    static final String COL_PRIORITY = "PRIORITY";
+    /** Header name of the exclusive flag. */
+    static final String COL_EXCLUSIVE = "EXCLUSIVE";
+    /** Header name of the per-card monthly cap. */
+    static final String COL_MONTHLY_CAP_PER_CARD = "MONTHLY_CAP_PER_CARD";
+    /** Header name of the active flag. */
+    static final String COL_ACTIVE = "ACTIVE";
+    /** Header name of the JSON specification (last column, possibly delimiter-bearing). */
+    static final String COL_SPECIFICATION = "SPECIFICATION";
 
-    /**
-     * Zero-based index of the specification column (the last, possibly delimiter-bearing).
-     */
-    private static final int SPEC_INDEX = 9;
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_TYPE, COL_LABEL, COL_VALID_FROM, COL_VALID_TO, COL_PRIORITY,
+            COL_EXCLUSIVE, COL_MONTHLY_CAP_PER_CARD, COL_ACTIVE, COL_SPECIFICATION);
 
     /**
      * The registry validating the type and the specification of each rule (§12).
@@ -71,7 +89,7 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importRules(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CODE, REQUIRED_COLUMNS);
     }
 
     /**
@@ -107,9 +125,8 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
      */
     @Override
     protected void processLineLogic(LineData data, Map<String, Object> entityMap, int[] counters) {
-        String[] parts = data.parts;
-        String type = safeGetNonBlank(parts, 1);
-        String specification = specificationOf(parts);
+        String type = safeGetNonBlank(data, COL_TYPE);
+        String specification = specificationOf(data);
         validateRule(data.code, type, specification);
 
         FidelityRule rule = (FidelityRule) entityMap.get(data.code);
@@ -167,58 +184,59 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
      * @param rule The rule to populate.
      */
     private void feedRule(LineData data, FidelityRule rule) {
-        String[] parts = data.parts;
-        rule.type = safeGetNonBlank(parts, 1);
-        rule.label = safeGet(parts, 2);
-        LocalDateTime validFrom = safeParseDateTime(parts, 3);
+        rule.type = safeGetNonBlank(data, COL_TYPE);
+        rule.label = safeGet(data, COL_LABEL);
+        LocalDateTime validFrom = safeParseDateTime(data, COL_VALID_FROM);
         if (validFrom == null) {
             throw new IllegalArgumentException("missing or malformed validFrom (ISO date-time)");
         }
         rule.validFrom = validFrom;
-        rule.validTo = safeParseDateTime(parts, 4);
-        Integer priority = safeParseInt(parts, 5);
+        rule.validTo = safeParseDateTime(data, COL_VALID_TO);
+        Integer priority = safeParseInt(data, COL_PRIORITY);
         rule.priority = priority != null ? priority : 0;
-        rule.exclusive = safeParseBoolean(parts, 6);
-        rule.monthlyCapPerCard = safeParseBigDecimal(parts, 7);
-        rule.active = parseActive(parts, 8);
-        rule.specification = specificationOf(parts);
+        rule.exclusive = safeParseBoolean(data, COL_EXCLUSIVE);
+        rule.monthlyCapPerCard = safeParseBigDecimal(data, COL_MONTHLY_CAP_PER_CARD);
+        rule.active = parseActive(data);
+        rule.specification = specificationOf(data);
     }
 
     /**
-     * Reconstructs the specification column, joining any tail columns with the pipe
-     * delimiter so a JSON specification bearing a {@code |} survives the split.
+     * Reconstructs the specification column, joining any tail cells beyond the
+     * header-resolved {@code SPECIFICATION} index with the pipe delimiter so a
+     * JSON specification bearing a {@code |} survives the split — which is why
+     * the file contract declares {@code SPECIFICATION} as the LAST header column.
      *
-     * @param parts The row columns.
+     * @param data The parsed CSV line.
      * @return The specification JSON string, or null when absent.
      */
-    private String specificationOf(String[] parts) {
-        if (parts.length <= SPEC_INDEX) {
+    private String specificationOf(LineData data) {
+        Integer specIndex = data.header.get(COL_SPECIFICATION);
+        if (specIndex == null || data.parts.length <= specIndex) {
             return null;
         }
-        if (parts.length == SPEC_INDEX + 1) {
-            String single = parts[SPEC_INDEX];
+        if (data.parts.length == specIndex + 1) {
+            String single = data.parts[specIndex];
             return single == null ? null : single.trim();
         }
         StringBuilder sb = new StringBuilder();
-        for (int i = SPEC_INDEX; i < parts.length; i++) {
-            if (i > SPEC_INDEX) {
+        for (int i = specIndex; i < data.parts.length; i++) {
+            if (i > specIndex) {
                 sb.append('|');
             }
-            sb.append(parts[i] == null ? "" : parts[i]);
+            sb.append(data.parts[i] == null ? "" : data.parts[i]);
         }
         return sb.toString().trim();
     }
 
     /**
-     * Parses the {@code active} column, defaulting to {@code true} when blank so a
+     * Parses the {@code ACTIVE} column, defaulting to {@code true} when blank so a
      * rule is active unless explicitly deactivated.
      *
-     * @param parts The row columns.
-     * @param index The column index.
+     * @param data The parsed CSV line.
      * @return true unless the column explicitly reads {@code false}.
      */
-    private boolean parseActive(String[] parts, int index) {
-        String value = safeGetNonBlank(parts, index);
+    private boolean parseActive(LineData data) {
+        String value = safeGetNonBlank(data, COL_ACTIVE);
         return value == null || Boolean.parseBoolean(value);
     }
 
@@ -230,31 +248,30 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
      * @return The incoming checksum.
      */
     private int computeIncomingChecksum(LineData data) {
-        String[] parts = data.parts;
         // Field order mirrors FidelityRule#getChecksum() exactly, so an unchanged
         // row hashes identically and is skipped.
         return Objects.hash(
                 data.code,
-                safeGetNonBlank(parts, 1),
-                safeGet(parts, 2),
-                specificationOf(parts),
-                safeParseDateTime(parts, 3),
-                safeParseDateTime(parts, 4),
-                priorityOf(parts),
-                safeParseBoolean(parts, 6),
-                safeParseBigDecimal(parts, 7),
-                parseActive(parts, 8)
+                safeGetNonBlank(data, COL_TYPE),
+                safeGet(data, COL_LABEL),
+                specificationOf(data),
+                safeParseDateTime(data, COL_VALID_FROM),
+                safeParseDateTime(data, COL_VALID_TO),
+                priorityOf(data),
+                safeParseBoolean(data, COL_EXCLUSIVE),
+                safeParseBigDecimal(data, COL_MONTHLY_CAP_PER_CARD),
+                parseActive(data)
         );
     }
 
     /**
      * Reads the priority column with the same default as {@link #feedRule}.
      *
-     * @param parts The row columns.
+     * @param data The parsed CSV line.
      * @return The priority, or 0 when absent.
      */
-    private int priorityOf(String[] parts) {
-        Integer priority = safeParseInt(parts, 5);
+    private int priorityOf(LineData data) {
+        Integer priority = safeParseInt(data, COL_PRIORITY);
         return priority != null ? priority : 0;
     }
 }

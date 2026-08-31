@@ -26,8 +26,9 @@ import java.util.Set;
  * {@code MONTHLY_DATE_EARN} rules and carry the per-card monthly cap, the
  * enrollment cap and the annual renewal window (§13, §15).
  * <p>
- * File format (7 pipe-delimited columns):
- * {@code code|label|monthlyCap|enrollmentCap|renewalStartMonth|renewalEndMonth|eligibilityCriteria}.
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CODE (key), LABEL, MONTHLY_CAP, ENROLLMENT_CAP,
+ * RENEWAL_START_MONTH, RENEWAL_END_MONTH, ELIGIBILITY_CRITERIA.
  * The {@code fid-admin} role guard (§24.1) is attached in the security build step.
  */
 @Path("/fidelity/communities/import")
@@ -35,10 +36,25 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityCommunityCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the community CSV.
-     */
-    private static final int COLUMNS = 7;
+    /** Header name of the natural key: the community code. */
+    static final String COL_CODE = "CODE";
+    /** Header name of the community label. */
+    static final String COL_LABEL = "LABEL";
+    /** Header name of the per-card monthly cap. */
+    static final String COL_MONTHLY_CAP = "MONTHLY_CAP";
+    /** Header name of the enrollment cap. */
+    static final String COL_ENROLLMENT_CAP = "ENROLLMENT_CAP";
+    /** Header name of the renewal window start month. */
+    static final String COL_RENEWAL_START_MONTH = "RENEWAL_START_MONTH";
+    /** Header name of the renewal window end month. */
+    static final String COL_RENEWAL_END_MONTH = "RENEWAL_END_MONTH";
+    /** Header name of the eligibility criteria text. */
+    static final String COL_ELIGIBILITY_CRITERIA = "ELIGIBILITY_CRITERIA";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_LABEL, COL_MONTHLY_CAP, COL_ENROLLMENT_CAP,
+            COL_RENEWAL_START_MONTH, COL_RENEWAL_END_MONTH, COL_ELIGIBILITY_CRITERIA);
 
     /**
      * Imports or updates loyalty communities from a CSV stream (§18).
@@ -50,7 +66,7 @@ public class FidelityCommunityCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importCommunities(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CODE, REQUIRED_COLUMNS);
     }
 
     /**
@@ -115,13 +131,12 @@ public class FidelityCommunityCsvResource extends ImporterCsvResource {
      * @param community The community to populate.
      */
     private void feedCommunity(LineData data, FidelityCommunity community) {
-        String[] parts = data.parts;
-        community.label = safeGet(parts, 1);
-        community.monthlyCap = safeParseBigDecimal(parts, 2);
-        community.enrollmentCap = safeParseInt(parts, 3);
-        community.renewalStartMonth = safeParseInt(parts, 4);
-        community.renewalEndMonth = safeParseInt(parts, 5);
-        community.eligibilityCriteria = safeGet(parts, 6);
+        community.label = safeGet(data, COL_LABEL);
+        community.monthlyCap = safeParseBigDecimal(data, COL_MONTHLY_CAP);
+        community.enrollmentCap = safeParseInt(data, COL_ENROLLMENT_CAP);
+        community.renewalStartMonth = safeParseInt(data, COL_RENEWAL_START_MONTH);
+        community.renewalEndMonth = safeParseInt(data, COL_RENEWAL_END_MONTH);
+        community.eligibilityCriteria = safeGet(data, COL_ELIGIBILITY_CRITERIA);
     }
 
     /**
@@ -132,15 +147,14 @@ public class FidelityCommunityCsvResource extends ImporterCsvResource {
      * @return The incoming checksum.
      */
     private int computeIncomingChecksum(LineData data) {
-        String[] parts = data.parts;
         return Objects.hash(
                 data.code,
-                safeGet(parts, 1),
-                safeParseBigDecimal(parts, 2),
-                safeParseInt(parts, 3),
-                safeParseInt(parts, 4),
-                safeParseInt(parts, 5),
-                safeGet(parts, 6)
+                safeGet(data, COL_LABEL),
+                safeParseBigDecimal(data, COL_MONTHLY_CAP),
+                safeParseInt(data, COL_ENROLLMENT_CAP),
+                safeParseInt(data, COL_RENEWAL_START_MONTH),
+                safeParseInt(data, COL_RENEWAL_END_MONTH),
+                safeGet(data, COL_ELIGIBILITY_CRITERIA)
         );
     }
 }

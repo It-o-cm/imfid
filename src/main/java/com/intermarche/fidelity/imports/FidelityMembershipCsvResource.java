@@ -31,9 +31,10 @@ import java.util.Set;
  * {@code (account, community, validFrom)} so a re-import only extends or closes the
  * window through {@code validTo}.
  * <p>
- * File format (4 pipe-delimited columns):
- * {@code cardNumber|communityCode|validFrom|validTo}, dates in ISO local date; a
- * blank {@code validTo} leaves the window open. An unknown card or community, or a
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CARD_NUMBER (key), COMMUNITY_CODE, VALID_FROM, VALID_TO,
+ * dates in ISO local date; a
+ * blank {@code VALID_TO} leaves the window open. An unknown card or community, or a
  * missing {@code validFrom}, fails the row and triggers the staged fallback. The
  * {@code fid-admin} role guard (§24.1) is attached in the security build step.
  */
@@ -42,10 +43,18 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityMembershipCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the membership CSV.
-     */
-    private static final int COLUMNS = 4;
+    /** Header name of the natural key: the member card number. */
+    static final String COL_CARD_NUMBER = "CARD_NUMBER";
+    /** Header name of the community code. */
+    static final String COL_COMMUNITY_CODE = "COMMUNITY_CODE";
+    /** Header name of the membership window start. */
+    static final String COL_VALID_FROM = "VALID_FROM";
+    /** Header name of the membership window end. */
+    static final String COL_VALID_TO = "VALID_TO";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_COMMUNITY_CODE, COL_VALID_FROM, COL_VALID_TO);
 
     /**
      * Context key holding the pre-fetched accounts map (card number &rarr; account).
@@ -67,7 +76,7 @@ public class FidelityMembershipCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importMemberships(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CARD_NUMBER, REQUIRED_COLUMNS);
     }
 
     /**
@@ -89,7 +98,7 @@ public class FidelityMembershipCsvResource extends ImporterCsvResource {
         contextMap.put(CTX_ACCOUNTS, fetchAccounts(targetCards));
         Set<String> communityCodes = new HashSet<>();
         for (LineData data : parsedLines) {
-            String code = safeGetNonBlank(data.parts, 1);
+            String code = safeGetNonBlank(data, COL_COMMUNITY_CODE);
             if (code != null) {
                 communityCodes.add(code);
             }
@@ -144,16 +153,16 @@ public class FidelityMembershipCsvResource extends ImporterCsvResource {
         if (account == null) {
             throw new IllegalArgumentException("Card '" + data.code + "' not found.");
         }
-        String communityCode = safeGetNonBlank(data.parts, 1);
+        String communityCode = safeGetNonBlank(data, COL_COMMUNITY_CODE);
         FidelityCommunity community = resolveCommunity(entityMap, communityCode);
         if (community == null) {
             throw new IllegalArgumentException("Community '" + communityCode + "' not found.");
         }
-        LocalDate validFrom = safeParseLocalDate(data.parts, 2);
+        LocalDate validFrom = safeParseLocalDate(data, COL_VALID_FROM);
         if (validFrom == null) {
             throw new IllegalArgumentException("validFrom is mandatory.");
         }
-        LocalDate validTo = safeParseLocalDate(data.parts, 3);
+        LocalDate validTo = safeParseLocalDate(data, COL_VALID_TO);
         FidelityMembership membership = FidelityMembership.find(
                 "account = ?1 and community = ?2 and validFrom = ?3", account, community, validFrom).firstResult();
         if (membership == null) {

@@ -24,6 +24,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +43,7 @@ import org.mockito.Mockito;
  * {@link ImporterCsvResource#safeParseBigDecimal} — is asserted by {@code compareTo} (§29.6).
  * <p>
  * A private {@link TestImporter} supplies the three abstract hooks so the generic framework can be
- * driven in isolation: stream reading and header skipping, the staged fallback
+ * driven in isolation: stream reading and header-driven column resolution, the staged fallback
  * (1000&rarr;100&rarr;10&rarr;1), the programmatic transaction with rollback handling, the JSON
  * report and every null-guarded parser. The transaction manager is a Mockito mock and the session
  * ({@code Panache.getEntityManager}) is a static mock opened per test in {@link #setUp()}, so no
@@ -100,7 +101,7 @@ class ImporterCsvResourceTest {
      * A concrete importer whose abstract hooks are configurable per test: the chunk pre-fetch, the
      * per-row create/update logic and the 1-by-1 lookup.
      */
-    private static final class TestImporter extends ImporterCsvResource {
+    private static class TestImporter extends ImporterCsvResource {
 
         /**
          * The context map returned by {@link #processChunkWithFallback} when no failure is armed.
@@ -224,14 +225,24 @@ class ImporterCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * Builds a parsed row whose code is the trimmed first column.
+     * Header names of the test rows, in cell order.
+     */
+    private static final String[] TEST_HEADER = {"CODE", "VAL"};
+
+    /**
+     * Builds a header-bound row from positional fixture cells: the header maps
+     * {@link #TEST_HEADER} onto the cell positions and CODE is the key column.
      *
      * @param lineNumber The 1-based source line number.
-     * @param parts      The row's raw columns.
-     * @return The parsed row.
+     * @param parts      The row's raw cells.
+     * @return The header-bound parsed row.
      */
     private LineData line(int lineNumber, String... parts) {
-        return new LineData(lineNumber, parts[0].trim(), parts);
+        Map<String, Integer> header = new LinkedHashMap<>();
+        for (int i = 0; i < TEST_HEADER.length; i++) {
+            header.put(TEST_HEADER[i], i);
+        }
+        return new LineData(lineNumber, header, parts, TEST_HEADER[0]);
     }
 
     /**
@@ -271,7 +282,7 @@ class ImporterCsvResourceTest {
     @Test
     @DisplayName("importCsvStream(): a header-only stream yields an empty report")
     void importHeaderOnly() {
-        Response response = resource.importCsvStream(stream("code|val\n"), 2);
+        Response response = resource.importCsvStream(stream("CODE|VAL\n"), "CODE", List.of("VAL"));
         assertEquals(200, response.getStatus());
         assertEquals("{\"createdCount\":0, \"updatedCount\":0}", response.getEntity());
     }
@@ -283,20 +294,20 @@ class ImporterCsvResourceTest {
     @Test
     @DisplayName("importCsvStream(): a small clean stream reports each row created")
     void importSmallClean() {
-        Response response = resource.importCsvStream(stream("code|val\nA|1\nB|2\nC|3\n"), 2);
+        Response response = resource.importCsvStream(stream("CODE|VAL\nA|1\nB|2\nC|3\n"), "CODE", List.of("VAL"));
         assertEquals(200, response.getStatus());
         assertEquals("{\"createdCount\":3, \"updatedCount\":0}", response.getEntity());
     }
 
     /**
-     * A blank line is skipped (empty guard true) and a row with too few columns is reported and
-     * dropped (column guard true), so the report carries an errors array escaped through
-     * {@code escapeJson}.
+     * A blank line is skipped (empty guard true) and a row with fewer cells than the header is
+     * reported and dropped (truncated-row guard true), so the report carries an errors array
+     * escaped through {@code escapeJson}.
      */
     @Test
-    @DisplayName("importCsvStream(): a blank line is skipped and a short row is reported")
+    @DisplayName("importCsvStream(): a blank line is skipped and a truncated row is reported")
     void importBlankAndShortRow() {
-        Response response = resource.importCsvStream(stream("code|val\n\nX\nA|1\n"), 2);
+        Response response = resource.importCsvStream(stream("CODE|VAL\n\nX\nA|1\n"), "CODE", List.of("VAL"));
         assertEquals(200, response.getStatus());
         String body = (String) response.getEntity();
         assertTrue(body.contains("\"createdCount\":1"));
@@ -311,11 +322,11 @@ class ImporterCsvResourceTest {
     @Test
     @DisplayName("importCsvStream(): a full-batch stream flushes a chunk mid-loop")
     void importFullBatch() {
-        StringBuilder csv = new StringBuilder("code|val\n");
+        StringBuilder csv = new StringBuilder("CODE|VAL\n");
         for (int i = 0; i < ImporterCsvResource.STAGE_1_SIZE; i++) {
             csv.append("C").append(i).append("|v\n");
         }
-        Response response = resource.importCsvStream(stream(csv.toString()), 2);
+        Response response = resource.importCsvStream(stream(csv.toString()), "CODE", List.of("VAL"));
         assertEquals(200, response.getStatus());
         assertEquals("{\"createdCount\":1000, \"updatedCount\":0}", response.getEntity());
     }
@@ -326,7 +337,7 @@ class ImporterCsvResourceTest {
     @Test
     @DisplayName("importCsvStream(): an unreadable stream yields a server error")
     void importIoError() {
-        Response response = resource.importCsvStream(new ThrowingInputStream(), 2);
+        Response response = resource.importCsvStream(new ThrowingInputStream(), "CODE", List.of("VAL"));
         assertEquals(500, response.getStatus());
         assertTrue(((String) response.getEntity()).contains("Error reading file"));
     }
@@ -339,7 +350,7 @@ class ImporterCsvResourceTest {
     @DisplayName("importCsvStream(): an unexpected error yields a server error")
     void importUnexpectedError() {
         resource.chunkException = new RuntimeException("boom");
-        Response response = resource.importCsvStream(stream("code|val\nA|1\n"), 2);
+        Response response = resource.importCsvStream(stream("CODE|VAL\nA|1\n"), "CODE", List.of("VAL"));
         assertEquals(500, response.getStatus());
         assertTrue(((String) response.getEntity()).contains("Unexpected error"));
     }
@@ -653,16 +664,16 @@ class ImporterCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * Both bounds legs and both null legs of {@code safeGet} are covered by four probes.
+     * The unknown-column, missing-cell, null-cell and trimmed-value legs of {@code safeGet} are
+     * covered by four probes.
      */
     @Test
-    @DisplayName("safeGet(): out-of-bounds, null cell and trimmed value")
+    @DisplayName("safeGet(): unknown column, missing cell, null cell and trimmed value")
     void safeGetBranches() {
-        String[] parts = {"x", null, "  y  "};
-        assertNull(resource.safeGet(parts, -1));
-        assertNull(resource.safeGet(parts, 3));
-        assertNull(resource.safeGet(parts, 1));
-        assertEquals("y", resource.safeGet(parts, 2));
+        assertNull(resource.safeGet(line(1, "x", "y"), "NOPE"));
+        assertNull(resource.safeGet(line(1, "x"), "VAL"));
+        assertNull(resource.safeGet(line(1, "x", null), "VAL"));
+        assertEquals("y", resource.safeGet(line(1, "x", "  y  "), "VAL"));
     }
 
     /**
@@ -671,90 +682,157 @@ class ImporterCsvResourceTest {
     @Test
     @DisplayName("safeGetNonBlank(): null, blank and value")
     void safeGetNonBlankBranches() {
-        String[] parts = {"a", ""};
-        assertNull(resource.safeGetNonBlank(parts, 5));
-        assertNull(resource.safeGetNonBlank(parts, 1));
-        assertEquals("a", resource.safeGetNonBlank(parts, 0));
+        LineData data = line(1, "a", "");
+        assertNull(resource.safeGetNonBlank(data, "NOPE"));
+        assertNull(resource.safeGetNonBlank(data, "VAL"));
+        assertEquals("a", resource.safeGetNonBlank(data, "CODE"));
     }
 
     /**
-     * The out-of-bounds, empty, true and false legs of {@code safeParseBoolean} are covered.
+     * The unknown-column, empty, true and false legs of {@code safeParseBoolean} are covered.
      */
     @Test
-    @DisplayName("safeParseBoolean(): bounds, empty, true and false")
+    @DisplayName("safeParseBoolean(): unknown column, empty, true and false")
     void safeParseBooleanBranches() {
-        String[] parts = {"true", "", "notabool"};
-        assertFalse(resource.safeParseBoolean(parts, 9));
-        assertFalse(resource.safeParseBoolean(parts, 1));
-        assertTrue(resource.safeParseBoolean(parts, 0));
-        assertFalse(resource.safeParseBoolean(parts, 2));
+        LineData data = line(1, "true", "");
+        assertFalse(resource.safeParseBoolean(data, "NOPE"));
+        assertFalse(resource.safeParseBoolean(data, "VAL"));
+        assertTrue(resource.safeParseBoolean(data, "CODE"));
+        assertFalse(resource.safeParseBoolean(line(1, "notabool"), "CODE"));
     }
 
     /**
-     * The out-of-bounds, empty, malformed and valid legs of {@code safeParseBigDecimal} are covered;
-     * the parsed value is asserted by {@code compareTo} (§29.6).
+     * The unknown-column, empty, malformed and valid legs of {@code safeParseBigDecimal} are
+     * covered; the parsed value is asserted by {@code compareTo} (§29.6).
      */
     @Test
-    @DisplayName("safeParseBigDecimal(): bounds, empty, malformed and value")
+    @DisplayName("safeParseBigDecimal(): unknown column, empty, malformed and value")
     void safeParseBigDecimalBranches() {
-        String[] parts = {"12.34", "", "abc"};
-        assertNull(resource.safeParseBigDecimal(parts, 9));
-        assertNull(resource.safeParseBigDecimal(parts, 1));
-        assertNull(resource.safeParseBigDecimal(parts, 2));
-        assertEquals(0, resource.safeParseBigDecimal(parts, 0).compareTo(new BigDecimal("12.34")));
+        LineData data = line(1, "12.34", "");
+        assertNull(resource.safeParseBigDecimal(data, "NOPE"));
+        assertNull(resource.safeParseBigDecimal(data, "VAL"));
+        assertNull(resource.safeParseBigDecimal(line(1, "abc"), "CODE"));
+        assertEquals(0, resource.safeParseBigDecimal(data, "CODE").compareTo(new BigDecimal("12.34")));
     }
 
     /**
-     * The out-of-bounds, empty, malformed and valid legs of {@code safeParseInt} are covered.
+     * The unknown-column, empty, malformed and valid legs of {@code safeParseInt} are covered.
      */
     @Test
-    @DisplayName("safeParseInt(): bounds, empty, malformed and value")
+    @DisplayName("safeParseInt(): unknown column, empty, malformed and value")
     void safeParseIntBranches() {
-        String[] parts = {"42", "", "xx"};
-        assertNull(resource.safeParseInt(parts, 9));
-        assertNull(resource.safeParseInt(parts, 1));
-        assertNull(resource.safeParseInt(parts, 2));
-        assertEquals(Integer.valueOf(42), resource.safeParseInt(parts, 0));
+        LineData data = line(1, "42", "");
+        assertNull(resource.safeParseInt(data, "NOPE"));
+        assertNull(resource.safeParseInt(data, "VAL"));
+        assertNull(resource.safeParseInt(line(1, "xx"), "CODE"));
+        assertEquals(Integer.valueOf(42), resource.safeParseInt(data, "CODE"));
     }
 
     /**
-     * The out-of-bounds, empty, malformed and valid legs of {@code safeParseDateTime} are covered.
+     * The unknown-column, empty, malformed and valid legs of {@code safeParseDateTime} are covered.
      */
     @Test
-    @DisplayName("safeParseDateTime(): bounds, empty, malformed and value")
+    @DisplayName("safeParseDateTime(): unknown column, empty, malformed and value")
     void safeParseDateTimeBranches() {
-        String[] parts = {"2026-01-31T23:59:59", "", "nope"};
-        assertNull(resource.safeParseDateTime(parts, 9));
-        assertNull(resource.safeParseDateTime(parts, 1));
-        assertNull(resource.safeParseDateTime(parts, 2));
-        assertEquals(LocalDateTime.of(2026, 1, 31, 23, 59, 59), resource.safeParseDateTime(parts, 0));
+        LineData data = line(1, "2026-01-31T23:59:59", "");
+        assertNull(resource.safeParseDateTime(data, "NOPE"));
+        assertNull(resource.safeParseDateTime(data, "VAL"));
+        assertNull(resource.safeParseDateTime(line(1, "nope"), "CODE"));
+        assertEquals(LocalDateTime.of(2026, 1, 31, 23, 59, 59), resource.safeParseDateTime(data, "CODE"));
     }
 
     /**
-     * The out-of-bounds, empty, malformed and valid legs of {@code safeParseLocalDate} are covered.
+     * The unknown-column, empty, malformed and valid legs of {@code safeParseLocalDate} are covered.
      */
     @Test
-    @DisplayName("safeParseLocalDate(): bounds, empty, malformed and value")
+    @DisplayName("safeParseLocalDate(): unknown column, empty, malformed and value")
     void safeParseLocalDateBranches() {
-        String[] parts = {"2026-01-01", "", "nope"};
-        assertNull(resource.safeParseLocalDate(parts, 9));
-        assertNull(resource.safeParseLocalDate(parts, 1));
-        assertNull(resource.safeParseLocalDate(parts, 2));
-        assertEquals(LocalDate.of(2026, 1, 1), resource.safeParseLocalDate(parts, 0));
+        LineData data = line(1, "2026-01-01", "");
+        assertNull(resource.safeParseLocalDate(data, "NOPE"));
+        assertNull(resource.safeParseLocalDate(data, "VAL"));
+        assertNull(resource.safeParseLocalDate(line(1, "nope"), "CODE"));
+        assertEquals(LocalDate.of(2026, 1, 1), resource.safeParseLocalDate(data, "CODE"));
     }
 
     /**
-     * The out-of-bounds, empty, unknown and valid (case-insensitive) legs of {@code safeParseEnum}
-     * are covered.
+     * The unknown-column, empty, unknown-constant and valid (case-insensitive) legs of
+     * {@code safeParseEnum} are covered.
      */
     @Test
-    @DisplayName("safeParseEnum(): bounds, empty, unknown and value")
+    @DisplayName("safeParseEnum(): unknown column, empty, unknown constant and value")
     void safeParseEnumBranches() {
-        String[] parts = {"red", "", "purple"};
-        assertNull(resource.safeParseEnum(Sample.class, parts, 9));
-        assertNull(resource.safeParseEnum(Sample.class, parts, 1));
-        assertNull(resource.safeParseEnum(Sample.class, parts, 2));
-        assertEquals(Sample.RED, resource.safeParseEnum(Sample.class, parts, 0));
+        LineData data = line(1, "red", "");
+        assertNull(resource.safeParseEnum(Sample.class, data, "NOPE"));
+        assertNull(resource.safeParseEnum(Sample.class, data, "VAL"));
+        assertNull(resource.safeParseEnum(Sample.class, line(1, "purple"), "CODE"));
+        assertEquals(Sample.RED, resource.safeParseEnum(Sample.class, data, "CODE"));
+    }
+
+    // --------------------------------------------------
+    // importCsvStream(): header validation and key guard
+    // --------------------------------------------------
+
+    /**
+     * A header missing the key column or a required column rejects the file with a 400 naming the
+     * missing names, before any chunk is processed.
+     */
+    @Test
+    @DisplayName("importCsvStream(): missing required columns reject the file with a 400")
+    void importMissingRequiredColumns() {
+        Response response = resource.importCsvStream(stream("OTHER|VAL\nA|foo\n"), "CODE", List.of("VAL", "EXTRA"));
+        assertEquals(400, response.getStatus());
+        assertEquals("{\"error\":\"Missing required columns: CODE, EXTRA\"}", response.getEntity());
+    }
+
+    /**
+     * A duplicate header name keeps its FIRST index (first-wins arm of {@code parseHeader}): the
+     * key is read from the first occurrence, so the row matches the armed context and counts as an
+     * update.
+     */
+    @Test
+    @DisplayName("importCsvStream(): a duplicate header column keeps its first index")
+    void importDuplicateHeaderFirstWins() {
+        resource.chunkResult.put("A", new Object());
+        Response response = resource.importCsvStream(stream("CODE|CODE\nA|B\n"), "CODE", List.of());
+        assertEquals(200, response.getStatus());
+        assertEquals("{\"createdCount\":0, \"updatedCount\":1}", response.getEntity());
+    }
+
+    /**
+     * A data row whose key cell is empty is reported and skipped (empty-key guard true with the
+     * default {@code acceptsEmptyKey()} false) without stopping the import.
+     */
+    @Test
+    @DisplayName("importCsvStream(): an empty key row is reported and skipped")
+    void importEmptyKeyReported() {
+        Response response = resource.importCsvStream(stream("CODE|VAL\n|foo\nB|bar\n"), "CODE", List.of("VAL"));
+        assertEquals(200, response.getStatus());
+        assertEquals("{\"createdCount\":1, \"updatedCount\":0, \"errors\":[\"Line 2 ignored (empty key 'CODE')\"]}",
+                response.getEntity());
+    }
+
+    /**
+     * The {@code acceptsEmptyKey()} true arm: an importer that generates its own key (the account
+     * import, §33.1) lets an empty-key row through to the processing logic instead of reporting it.
+     */
+    @Test
+    @DisplayName("importCsvStream(): an empty-key-accepting importer processes the blank row")
+    void importEmptyKeyAccepted() {
+        TestImporter generating = new TestImporter() {
+            /**
+             * Accepts empty-key rows, as a key-generating importer would (§33.1).
+             *
+             * @return Always true.
+             */
+            @Override
+            protected boolean acceptsEmptyKey() {
+                return true;
+            }
+        };
+        generating.tm = tm;
+        Response response = generating.importCsvStream(stream("CODE|VAL\n|foo\n"), "CODE", List.of("VAL"));
+        assertEquals(200, response.getStatus());
+        assertEquals("{\"createdCount\":1, \"updatedCount\":0}", response.getEntity());
     }
 
     /**

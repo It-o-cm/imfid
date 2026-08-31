@@ -36,7 +36,7 @@ asserter tel quel.
 
 - **A1 Boot dev nominal** : démarrage → log
   `Dev/test dataset loaded: 46 products, 11 rules, 4 communities, 9 accounts, 22 movements` ;
-  log `Earn rule registry started: 7 schemas registered …` (registre AVANT le seed :
+  log `Earn rule registry started: 8 schemas registered …` (registre AVANT le seed :
   observeurs `@Priority` 2500 < 2700) ; log
   `Bootstrap users created: 'pos' (pos), 'admin' (fid-admin)`.
 - **A2 Amnésie inversée** : créer une règle + une carte à la main → redémarrer → tout a
@@ -310,7 +310,7 @@ asserter tel quel.
   que l'édition, tout désactivé, bascule Form/JSON **active** ; ⚠ le verrou est
   ré-appliqué après chaque re-render (retour de bascule JSON → Form) — c'est le point
   fragile à couvrir ; taux affiché 5, JSON stocké 0.05 (« facteur cent »).
-- **I3 Création** [W] : formulaire régénéré par type depuis les 7 schémas (les mêmes
+- **I3 Création** [W] : formulaire régénéré par type depuis les 8 schémas (les mêmes
   que le moteur) ; erreur serveur → re-rendu **avec notice** (`Invalid specification
   for type '<t>': <violations>`) ; fenêtre chevauchant une instance du même code →
   `Rule window overlaps an existing instance of code '<c>'`.
@@ -451,8 +451,10 @@ asserter tel quel.
 - **N1 Solde = Σ mouvements, partout** : après CHAQUE scénario écrivant (E, G, H) :
   `balance` recalculée == somme signée des mouvements — l'invariant §14 est
   l'assertion de clôture universelle de ce catalogue.
-- **N2 Pseudonymat** : aucune donnée nominative nulle part — assertions d'absence sur
-  les réponses API et les écrans (la carte est la seule clé, §33.3).
+- **N2 Pseudonymat** : le flux ticket reste pseudonyme — assertions d'absence de clé
+  nominative sur le résumé de compte et l'historique des mouvements ; sur la fiche
+  carte, l'identité n'apparaît que dans le bloc « Porteur » de l'annuaire local
+  (repli sans CRM), qui affiche le porteur seedé de la carte (§33.3).
 - **N3 Concurrence par carte** : deux réservations simultanées sur la même carte
   (tickets ≠) → exactement une 201 + une 409 (verrou `SELECT FOR UPDATE`, I11) ;
   deux `ticket-closed` concurrents même carte → deux crédits, jamais de perte

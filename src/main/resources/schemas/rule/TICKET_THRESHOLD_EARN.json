@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://imfid.intermarche.com/schemas/rule/TICKET_THRESHOLD_EARN.json",
+  "title": "Paliers de ticket",
+  "description": "Fixed gain unlocked by the highest amount threshold reached by the eligible assiette of the single current ticket (§12).",
+  "type": "object",
+  "x-label": "Paliers de ticket",
+  "properties": {
+    "scope": { "$ref": "#/$defs/scope" },
+    "tiers": {
+      "type": "array",
+      "minItems": 1,
+      "x-widget": "object-list",
+      "x-label": "Paliers",
+      "x-item-label": "palier",
+      "items": {
+        "type": "object",
+        "properties": {
+          "threshold": {
+            "type": "number",
+            "minimum": 0,
+            "x-widget": "money",
+            "x-label": "Seuil du ticket",
+            "x-unit": "€"
+          },
+          "reward": {
+            "type": "number",
+            "minimum": 0,
+            "x-widget": "money",
+            "x-label": "Gain",
+            "x-unit": "€"
+          }
+        },
+        "required": ["threshold", "reward"],
+        "additionalProperties": false
+      }
+    }
+  },
+  "required": ["scope", "tiers"],
+  "additionalProperties": false,
+  "$defs": {
+    "scope": {
+      "type": "object",
+      "x-widget": "scope",
+      "x-label": "Assiette",
+      "properties": {
+        "wholeStore": { "type": "boolean", "x-widget": "toggle", "x-label": "Tout le magasin" },
+        "include": { "$ref": "#/$defs/scopeSet", "x-label": "Inclusions" },
+        "exclude": { "$ref": "#/$defs/scopeSet", "x-label": "Exclusions" }
+      },
+      "additionalProperties": false
+    },
+    "scopeSet": {
+      "type": "object",
+      "properties": {
+        "brands": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Marques" },
+        "families": { "type": "array", "items": { "type": "string" }, "x-widget": "string-list", "x-label": "Familles" },
+        "eans": { "type": "array", "items": { "type": "string" }, "x-widget": "ean", "x-label": "EAN" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

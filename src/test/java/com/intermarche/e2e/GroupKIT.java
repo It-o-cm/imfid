@@ -48,7 +48,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * E2E scenarios of group K — the CSV bulk imports and the Imports screen (§18, §23.5,
  * e2escenarios-imfid.md "## K. Imports CSV & écran Imports"): the common machinery — raw
- * pipe-delimited POST, skipped header, JSON report and staged fallback with its WARN line
+ * pipe-delimited POST, header-driven column resolution, JSON report and staged fallback with its WARN line
  * (K1); the checksum idempotence, 0-update on an identical replay, 1 on a changed field (K2);
  * the resource-level ordering catch-up of the nine-domain pack (K3); the drag &amp; drop
  * preselection with its {@code famil}-before-{@code product} trap (K4 [W]); the {@code
@@ -121,40 +121,40 @@ class GroupKIT {
     private static final String FAMILIES_IMPORT = "/product-families/import";
 
     /**
-     * The rule CSV header line (skipped on every import).
+     * The rule CSV header line (columns resolved by name on every import).
      */
     private static final String RULE_HEADER =
-            "code|type|label|validFrom|validTo|priority|exclusive|monthlyCapPerCard|active|specification";
+            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION";
 
     /**
-     * The adjustment CSV header line (skipped on every import).
+     * The adjustment CSV header line (columns resolved by name on every import).
      */
-    private static final String ADJ_HEADER = "reference|cardNumber|amount|movementDate|reason";
+    private static final String ADJ_HEADER = "REFERENCE|CARD_NUMBER|AMOUNT|MOVEMENT_DATE|REASON";
 
     /**
-     * The account CSV header line (skipped on every import).
+     * The account CSV header line (columns resolved by name on every import).
      */
-    private static final String ACCOUNT_HEADER = "cardNumber|status|activatedAt|lastUsedAt|transferredToCard";
+    private static final String ACCOUNT_HEADER = "CARD_NUMBER|STATUS|ACTIVATED_AT|LAST_USED_AT|TRANSFERRED_TO_CARD";
 
     /**
-     * The membership CSV header line (skipped on every import).
+     * The membership CSV header line (columns resolved by name on every import).
      */
-    private static final String MEMBERSHIP_HEADER = "cardNumber|communityCode|validFrom|validTo";
+    private static final String MEMBERSHIP_HEADER = "CARD_NUMBER|COMMUNITY_CODE|VALID_FROM|VALID_TO";
 
     /**
-     * The activation CSV header line (skipped on every import).
+     * The activation CSV header line (columns resolved by name on every import).
      */
-    private static final String ACTIVATION_HEADER = "cardNumber|ruleCode|periodStart|periodEnd|missionDone";
+    private static final String ACTIVATION_HEADER = "CARD_NUMBER|RULE_CODE|PERIOD_START|PERIOD_END|MISSION_DONE";
 
     /**
-     * The visit CSV header line (skipped on every import).
+     * The visit CSV header line (columns resolved by name on every import).
      */
-    private static final String VISIT_HEADER = "ticketRef|cardNumber|storeCode|fiscalDate";
+    private static final String VISIT_HEADER = "TICKET_REF|CARD_NUMBER|STORE_CODE|FISCAL_DATE";
 
     /**
-     * The family CSV header line (skipped on every import).
+     * The family CSV header line (columns resolved by name on every import).
      */
-    private static final String FAMILY_HEADER = "code|description|flags|product_eans|family_codes";
+    private static final String FAMILY_HEADER = "CODE|DESCRIPTION|FLAGS|PRODUCT_EANS|SUBFAMILY_CODES";
 
     /**
      * A valid {@code BRAND_TIERED_EARN} specification, reused wherever an import needs a rule
@@ -258,12 +258,12 @@ class GroupKIT {
     }
 
     // --------------------------------------------------
-    // K1 — common machinery: raw POST, header skip, report, staged fallback
+    // K1 — common machinery: raw POST, header-driven parsing, report, staged fallback
     // --------------------------------------------------
 
     /**
      * K1 — the common import machinery: a raw {@code text/plain} pipe-delimited POST with a
-     * skipped header returns a 200 JSON report {@code {"createdCount":n,"updatedCount":m}}; a
+     * header-driven body returns a 200 JSON report {@code {"createdCount":n,"updatedCount":m}}; a
      * chunk carrying one faulty row (an unknown card) triggers the staged fallback, logging the
      * WARN {@code Failed to process chunk of size 4 with step 1000. Retrying with step 100} and
      * emitting {@code Import finished. Created: 3, Updated: 0}, the three healthy rows passing

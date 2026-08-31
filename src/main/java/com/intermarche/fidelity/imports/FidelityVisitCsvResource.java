@@ -30,9 +30,9 @@ import java.util.Set;
  * balance. This is how the 5 % &rarr; 10 % demo is staged from three dated headers
  * (§24.4). Each row is keyed by its ticket reference (idempotent, §29.4).
  * <p>
- * File format (4 pipe-delimited columns):
- * {@code ticketRef|cardNumber|storeCode|fiscalDate}, {@code fiscalDate} an ISO
- * local date. A missing card number or fiscal date fails the row and triggers the
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): TICKET_REF (key), CARD_NUMBER, STORE_CODE, FISCAL_DATE —
+ * {@code FISCAL_DATE} an ISO local date. A missing card number or fiscal date fails the row and triggers the
  * staged fallback. The {@code fid-admin} role guard (§24.1) is attached in the
  * security build step.
  */
@@ -41,10 +41,18 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityVisitCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the visit CSV.
-     */
-    private static final int COLUMNS = 4;
+    /** Header name of the natural key: the ticket reference. */
+    static final String COL_TICKET_REF = "TICKET_REF";
+    /** Header name of the visiting card number. */
+    static final String COL_CARD_NUMBER = "CARD_NUMBER";
+    /** Header name of the store code. */
+    static final String COL_STORE_CODE = "STORE_CODE";
+    /** Header name of the visit fiscal date. */
+    static final String COL_FISCAL_DATE = "FISCAL_DATE";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_CARD_NUMBER, COL_STORE_CODE, COL_FISCAL_DATE);
 
     /**
      * Imports visits as dated {@link EarnTrace} headers from a CSV stream (§18, §29.1).
@@ -56,7 +64,7 @@ public class FidelityVisitCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importVisits(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_TICKET_REF, REQUIRED_COLUMNS);
     }
 
     /**
@@ -93,18 +101,18 @@ public class FidelityVisitCsvResource extends ImporterCsvResource {
         if (entityMap.get(data.code) != null) {
             return; // Visit already recorded for this ticket (§29.4).
         }
-        String cardNumber = safeGetNonBlank(data.parts, 1);
+        String cardNumber = safeGetNonBlank(data, COL_CARD_NUMBER);
         if (cardNumber == null) {
             throw new IllegalArgumentException("cardNumber is mandatory for a visit (§29.1).");
         }
-        LocalDate fiscalDate = safeParseLocalDate(data.parts, 3);
+        LocalDate fiscalDate = safeParseLocalDate(data, COL_FISCAL_DATE);
         if (fiscalDate == null) {
             throw new IllegalArgumentException("fiscalDate is mandatory.");
         }
         EarnTrace trace = new EarnTrace();
         trace.ticketRef = data.code;
         trace.cardNumber = cardNumber;
-        trace.storeCode = safeGetNonBlank(data.parts, 2);
+        trace.storeCode = safeGetNonBlank(data, COL_STORE_CODE);
         trace.fiscalDate = fiscalDate;
         trace.status = EarnTrace.STATUS_NO_MOVEMENT;
         Panache.getEntityManager().persist(trace);

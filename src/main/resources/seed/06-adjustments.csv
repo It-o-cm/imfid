@@ -1,4 +1,4 @@
-reference|cardNumber|amount|movementDate|reason
+REFERENCE|CARD_NUMBER|AMOUNT|MOVEMENT_DATE|REASON
 QUAL-001|2990000000019|56.70|2026-08-01|Solde initial qualif (équivalent du ledger de démo)
 QUAL-002|2990000000026|18.50|2026-08-01|Solde initial qualif (membre Bébés)
 QUAL-003|2990000000033|24.00|2026-08-01|Solde initial qualif (membre Étudiants)

@@ -96,15 +96,15 @@ class GroupAIT {
     /**
      * A1 — nominal dev boot: the seed logs the exact dataset line
      * {@code Dev/test dataset loaded: 46 products, 11 rules, 4 communities, 9 accounts,
-     * 22 movements}; the earn rule registry logs {@code Earn rule registry started: 7
+     * 22 movements}; the earn rule registry logs {@code Earn rule registry started: 8
      * schemas registered …} strictly before the seed (registry @Priority default 2500 &lt;
      * seed 2700); the security bootstrap logs
      * {@code Bootstrap users created: 'pos' (pos), 'admin' (fid-admin)}.
      */
     @Test
     void a1_bootLogsAnnounceSeedRegistryAndBootstrap() {
-        int registry = firstIndexMatching(m -> m.startsWith("Earn rule registry started: 7 schemas registered"));
-        assertTrue(registry >= 0, "the registry must log 7 schemas registered at boot");
+        int registry = firstIndexMatching(m -> m.startsWith("Earn rule registry started: 8 schemas registered"));
+        assertTrue(registry >= 0, "the registry must log 8 schemas registered at boot");
         int dataset = firstIndexMatching(m -> m.equals(
                 "Dev/test dataset loaded: 46 products, 11 rules, 4 communities, 9 accounts, 22 movements"));
         assertTrue(dataset >= 0, "the seed must log the exact dataset line");

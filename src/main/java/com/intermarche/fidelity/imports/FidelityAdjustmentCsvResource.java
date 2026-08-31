@@ -37,9 +37,10 @@ import java.util.Set;
  * Every account write happens under the per-card lock (SELECT FOR UPDATE, §30.1):
  * the movement is inserted and the denormalized balance is bumped atomically.
  * <p>
- * File format (5 pipe-delimited columns):
- * {@code reference|cardNumber|amount|movementDate|reason}, {@code amount} a signed
- * euro decimal and {@code movementDate} an ISO local date. An unknown card, a
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): REFERENCE (key), CARD_NUMBER, AMOUNT, MOVEMENT_DATE,
+ * REASON — {@code AMOUNT} a signed
+ * euro decimal and {@code MOVEMENT_DATE} an ISO local date. An unknown card, a
  * missing amount/date or a blank reason fails the row and triggers the staged
  * fallback. The {@code fid-admin} role guard (§24.1) is attached in the security
  * build step.
@@ -49,10 +50,20 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityAdjustmentCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the adjustment CSV.
-     */
-    private static final int COLUMNS = 5;
+    /** Header name of the natural key: the adjustment reference. */
+    static final String COL_REFERENCE = "REFERENCE";
+    /** Header name of the adjusted card number. */
+    static final String COL_CARD_NUMBER = "CARD_NUMBER";
+    /** Header name of the signed euro amount. */
+    static final String COL_AMOUNT = "AMOUNT";
+    /** Header name of the movement date. */
+    static final String COL_MOVEMENT_DATE = "MOVEMENT_DATE";
+    /** Header name of the mandatory adjustment reason. */
+    static final String COL_REASON = "REASON";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_CARD_NUMBER, COL_AMOUNT, COL_MOVEMENT_DATE, COL_REASON);
 
     /**
      * Imports {@code ADJUSTMENT} movements from a CSV stream (§18, §32.1).
@@ -64,7 +75,7 @@ public class FidelityAdjustmentCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importAdjustments(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_REFERENCE, REQUIRED_COLUMNS);
     }
 
     /**
@@ -102,10 +113,10 @@ public class FidelityAdjustmentCsvResource extends ImporterCsvResource {
         if (entityMap.get(data.code) != null) {
             return; // Already imported: a movement is immutable (I8, §32.1).
         }
-        String cardNumber = safeGetNonBlank(data.parts, 1);
-        BigDecimal amount = safeParseBigDecimal(data.parts, 2);
-        LocalDate movementDate = safeParseLocalDate(data.parts, 3);
-        String reason = safeGetNonBlank(data.parts, 4);
+        String cardNumber = safeGetNonBlank(data, COL_CARD_NUMBER);
+        BigDecimal amount = safeParseBigDecimal(data, COL_AMOUNT);
+        LocalDate movementDate = safeParseLocalDate(data, COL_MOVEMENT_DATE);
+        String reason = safeGetNonBlank(data, COL_REASON);
         if (amount == null) {
             throw new IllegalArgumentException("amount is mandatory.");
         }

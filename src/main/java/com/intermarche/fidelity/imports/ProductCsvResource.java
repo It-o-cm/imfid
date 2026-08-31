@@ -27,8 +27,9 @@ import java.util.Set;
  * {@link ProductFamilyCsvResource}, §18); the residual divergence between the two
  * references is absorbed by {@code UNKNOWN_EAN} at earn time (§25.4).
  * <p>
- * The file format matches imvaluation's product file (9 pipe-delimited columns):
- * {@code ean|name|description|brand|referenceWeight|referenceVolume|productType|unitName|active}.
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): EAN (key), NAME, DESCRIPTION, BRAND, REFERENCE_WEIGHT,
+ * REFERENCE_VOLUME, PRODUCT_TYPE, UNIT_NAME, ACTIVE.
  * <p>
  * The {@code fid-admin} role guard (§24.1) is attached in the security build step,
  * consistent with the skeleton deferring authentication; the staged fallback and
@@ -39,10 +40,29 @@ import java.util.Set;
 @RunOnVirtualThread
 public class ProductCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the product CSV.
-     */
-    private static final int COLUMNS = 9;
+    /** Header name of the natural key: the product EAN. */
+    static final String COL_EAN = "EAN";
+    /** Header name of the product label. */
+    static final String COL_NAME = "NAME";
+    /** Header name of the product description. */
+    static final String COL_DESCRIPTION = "DESCRIPTION";
+    /** Header name of the brand. */
+    static final String COL_BRAND = "BRAND";
+    /** Header name of the reference weight. */
+    static final String COL_REFERENCE_WEIGHT = "REFERENCE_WEIGHT";
+    /** Header name of the reference volume. */
+    static final String COL_REFERENCE_VOLUME = "REFERENCE_VOLUME";
+    /** Header name of the product type enum. */
+    static final String COL_PRODUCT_TYPE = "PRODUCT_TYPE";
+    /** Header name of the unit label. */
+    static final String COL_UNIT_NAME = "UNIT_NAME";
+    /** Header name of the active flag. */
+    static final String COL_ACTIVE = "ACTIVE";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_NAME, COL_DESCRIPTION, COL_BRAND, COL_REFERENCE_WEIGHT,
+            COL_REFERENCE_VOLUME, COL_PRODUCT_TYPE, COL_UNIT_NAME, COL_ACTIVE);
 
     /**
      * Imports or updates products from a CSV stream (§18).
@@ -54,7 +74,7 @@ public class ProductCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importProducts(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_EAN, REQUIRED_COLUMNS);
     }
 
     /**
@@ -119,15 +139,14 @@ public class ProductCsvResource extends ImporterCsvResource {
      * @param product The product to populate.
      */
     private void feedProduct(LineData data, Product product) {
-        String[] parts = data.parts;
-        product.name = safeGet(parts, 1);
-        product.description = safeGet(parts, 2);
-        product.brand = safeGet(parts, 3);
-        product.referenceWeight = safeParseBigDecimal(parts, 4);
-        product.referenceVolume = safeParseBigDecimal(parts, 5);
-        product.productType = safeParseEnum(ProductType.class, parts, 6);
-        product.unitName = safeGet(parts, 7);
-        product.active = safeParseBoolean(parts, 8);
+        product.name = safeGet(data, COL_NAME);
+        product.description = safeGet(data, COL_DESCRIPTION);
+        product.brand = safeGet(data, COL_BRAND);
+        product.referenceWeight = safeParseBigDecimal(data, COL_REFERENCE_WEIGHT);
+        product.referenceVolume = safeParseBigDecimal(data, COL_REFERENCE_VOLUME);
+        product.productType = safeParseEnum(ProductType.class, data, COL_PRODUCT_TYPE);
+        product.unitName = safeGet(data, COL_UNIT_NAME);
+        product.active = safeParseBoolean(data, COL_ACTIVE);
     }
 
     /**
@@ -138,17 +157,16 @@ public class ProductCsvResource extends ImporterCsvResource {
      * @return The incoming checksum.
      */
     private int computeIncomingChecksum(LineData data) {
-        String[] parts = data.parts;
         return Objects.hash(
                 data.code,
-                safeGet(parts, 1),
-                safeGet(parts, 2),
-                safeGet(parts, 3),
-                safeParseBigDecimal(parts, 4),
-                safeParseBigDecimal(parts, 5),
-                safeParseEnum(ProductType.class, parts, 6),
-                safeGet(parts, 7),
-                safeParseBoolean(parts, 8)
+                safeGet(data, COL_NAME),
+                safeGet(data, COL_DESCRIPTION),
+                safeGet(data, COL_BRAND),
+                safeParseBigDecimal(data, COL_REFERENCE_WEIGHT),
+                safeParseBigDecimal(data, COL_REFERENCE_VOLUME),
+                safeParseEnum(ProductType.class, data, COL_PRODUCT_TYPE),
+                safeGet(data, COL_UNIT_NAME),
+                safeParseBoolean(data, COL_ACTIVE)
         );
     }
 }

@@ -179,10 +179,10 @@ class GroupNIT {
     private static final String PRODUCTS_IMPORT = "/products/import";
 
     /**
-     * The product CSV header line (always skipped by the importer).
+     * The product CSV header line (columns resolved by name by the importer).
      */
     private static final String PRODUCT_HEADER =
-            "ean|name|description|brand|referenceWeight|referenceVolume|productType|unitName|active";
+            "EAN|NAME|DESCRIPTION|BRAND|REFERENCE_WEIGHT|REFERENCE_VOLUME|PRODUCT_TYPE|UNIT_NAME|ACTIVE";
 
     /**
      * The brand marker stamped on the N7 bulk products, so they are removed in one delete.
@@ -263,10 +263,12 @@ class GroupNIT {
     // --------------------------------------------------
 
     /**
-     * N2 — pseudonymity: no nominative datum surfaces anywhere. The account summary and the
-     * movement history of {@code …088} carry the card number as their only identifier and none
-     * of the forbidden nominative keys, and the admin card sheet renders no nominative field
-     * label on its French screen — the card is the sole key (§33.3).
+     * N2 — pseudonymity of the ticket flow, identity confined to the holder block (§33.3).
+     * The account summary and the movement history of {@code …088} carry the card number as
+     * their only identifier and none of the forbidden nominative keys: the ticket flow stays
+     * pseudonymous. On the admin card sheet, identity is legitimate since the local holder
+     * directory (the no-CRM fallback) — but only inside the « Porteur » block: the sheet
+     * shows the seeded holder of …088 there, and nowhere else.
      */
     @Test
     void n2_noNominativeDataOnApiOrScreen() {
@@ -283,10 +285,14 @@ class GroupNIT {
         }
         String sheet = cardSheetHtml(CARD_RESERVED);
         assertTrue(sheet.contains(CARD_RESERVED), "the card sheet identifies the card by its number (§33.3)");
-        for (String label : List.of("Nom du client", "Prénom", "Adresse e-mail", "Adresse email",
-                "Numéro de téléphone", "Date de naissance", "Nom de famille")) {
-            assertFalse(sheet.contains(label), "the card sheet must carry no nominative label but held '" + label + "'");
-        }
+        assertTrue(sheet.contains("Porteur"),
+                "in local mode (no CRM configured) the card sheet carries the holder block (§33.3)");
+        assertTrue(sheet.contains("García"),
+                "the holder block shows the seeded holder of the card (§33.3)");
+        int porteur = sheet.indexOf("Porteur");
+        int compteurs = sheet.indexOf("Compteurs du mois");
+        assertTrue(porteur >= 0 && compteurs > porteur,
+                "the holder block sits before the month counters — identity stays confined to it (§33.3)");
     }
 
     // --------------------------------------------------

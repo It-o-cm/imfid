@@ -693,6 +693,7 @@ public class DataInitializer {
         holder.lastName = lastName;
         holder.lastNameSearch = CardHolder.searchName(lastName);
         holder.firstName = firstName;
+        holder.firstNameSearch = CardHolder.searchName(firstName);
         holder.phone = phone;
         holder.phoneSearch = CardHolder.searchPhone(phone);
         holder.email = CardHolder.normalizeEmail(email);

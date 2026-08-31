@@ -30,9 +30,10 @@ import java.util.Set;
  * updates the same account). Initial balances are never set here: they arrive as
  * {@code ADJUSTMENT} movements (§32.1), so {@code balance} is left untouched.
  * <p>
- * File format (5 pipe-delimited columns):
- * {@code cardNumber|status|activatedAt|lastUsedAt|transferredToCard}, dates in
- * ISO local date-time; a blank {@code status} defaults to {@code ACTIVE} (§30.4).
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CARD_NUMBER (key), STATUS, ACTIVATED_AT, LAST_USED_AT,
+ * TRANSFERRED_TO_CARD, dates in
+ * ISO local date-time; a blank {@code STATUS} defaults to {@code ACTIVE} (§30.4).
  * The {@code fid-admin} role guard (§24.1) is attached in the security build step.
  */
 @Path("/fidelity/accounts/import")
@@ -40,10 +41,20 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityAccountCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the account CSV.
-     */
-    private static final int COLUMNS = 5;
+    /** Header name of the natural key: the card number (blank = generate, §33.1). */
+    static final String COL_CARD_NUMBER = "CARD_NUMBER";
+    /** Header name of the account status. */
+    static final String COL_STATUS = "STATUS";
+    /** Header name of the activation instant. */
+    static final String COL_ACTIVATED_AT = "ACTIVATED_AT";
+    /** Header name of the last-use instant. */
+    static final String COL_LAST_USED_AT = "LAST_USED_AT";
+    /** Header name of the successor card of a transferred account. */
+    static final String COL_TRANSFERRED_TO_CARD = "TRANSFERRED_TO_CARD";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_STATUS, COL_ACTIVATED_AT, COL_LAST_USED_AT, COL_TRANSFERRED_TO_CARD);
 
     /**
      * Total length of a card number (§33.1): a 13-digit EAN-13.
@@ -67,7 +78,19 @@ public class FidelityAccountCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importAccounts(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CARD_NUMBER, REQUIRED_COLUMNS);
+    }
+
+    /**
+     * Accepts empty-key rows: a blank {@code CARD_NUMBER} cell is this import's
+     * "generate the card number" instruction (§33.1), so such rows must reach
+     * {@link #processLineLogic} instead of being dropped by the base importer.
+     *
+     * @return Always true for the account import.
+     */
+    @Override
+    protected boolean acceptsEmptyKey() {
+        return true;
     }
 
     /**
@@ -135,12 +158,11 @@ public class FidelityAccountCsvResource extends ImporterCsvResource {
      * @param account The account to populate.
      */
     private void feedAccount(LineData data, FidelityAccount account) {
-        String[] parts = data.parts;
-        AccountStatus status = safeParseEnum(AccountStatus.class, parts, 1);
+        AccountStatus status = safeParseEnum(AccountStatus.class, data, COL_STATUS);
         account.status = status != null ? status : AccountStatus.ACTIVE;
-        account.activatedAt = safeParseDateTime(parts, 2);
-        account.lastUsedAt = safeParseDateTime(parts, 3);
-        account.transferredToCard = safeGetNonBlank(parts, 4);
+        account.activatedAt = safeParseDateTime(data, COL_ACTIVATED_AT);
+        account.lastUsedAt = safeParseDateTime(data, COL_LAST_USED_AT);
+        account.transferredToCard = safeGetNonBlank(data, COL_TRANSFERRED_TO_CARD);
     }
 
     /**
@@ -153,13 +175,12 @@ public class FidelityAccountCsvResource extends ImporterCsvResource {
      * @return true when the account must be updated.
      */
     private boolean hasChanged(LineData data, FidelityAccount account) {
-        String[] parts = data.parts;
-        AccountStatus status = safeParseEnum(AccountStatus.class, parts, 1);
+        AccountStatus status = safeParseEnum(AccountStatus.class, data, COL_STATUS);
         AccountStatus incomingStatus = status != null ? status : AccountStatus.ACTIVE;
         return account.status != incomingStatus
-                || !Objects.equals(account.activatedAt, safeParseDateTime(parts, 2))
-                || !Objects.equals(account.lastUsedAt, safeParseDateTime(parts, 3))
-                || !Objects.equals(account.transferredToCard, safeGetNonBlank(parts, 4));
+                || !Objects.equals(account.activatedAt, safeParseDateTime(data, COL_ACTIVATED_AT))
+                || !Objects.equals(account.lastUsedAt, safeParseDateTime(data, COL_LAST_USED_AT))
+                || !Objects.equals(account.transferredToCard, safeGetNonBlank(data, COL_TRANSFERRED_TO_CARD));
     }
 
     // --------------------------------------------------

@@ -20,6 +20,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -56,13 +57,24 @@ class ProductCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * Builds a parsed CSV row whose code is the trimmed first column.
+     * Header names of the fixture rows, in cell order.
+     */
+    private static final String[] TEST_HEADER = {"EAN", "NAME", "DESCRIPTION", "BRAND", "REFERENCE_WEIGHT", "REFERENCE_VOLUME", "PRODUCT_TYPE", "UNIT_NAME", "ACTIVE"};
+
+    /**
+     * Builds a header-bound CSV row from positional fixture cells: the header
+     * maps {@link #TEST_HEADER} onto the cell positions and the first name is
+     * the key column.
      *
-     * @param parts The row's raw columns.
-     * @return The line carrying line number 2 and the trimmed key.
+     * @param parts The row's raw cells.
+     * @return The line carrying line number 2 and the header-resolved key.
      */
     private LineData line(String... parts) {
-        return new LineData(2, parts[0].trim(), parts);
+        Map<String, Integer> header = new LinkedHashMap<>();
+        for (int i = 0; i < TEST_HEADER.length; i++) {
+            header.put(TEST_HEADER[i], i);
+        }
+        return new LineData(2, header, parts, TEST_HEADER[0]);
     }
 
     /**
@@ -115,7 +127,7 @@ class ProductCsvResourceTest {
     @DisplayName("importProducts(): a header-only stream yields an empty report")
     void importProductsHeaderOnly() {
         InputStream in = new ByteArrayInputStream(
-                "ean|name|description|brand|referenceWeight|referenceVolume|productType|unitName|active\n"
+                "EAN|NAME|DESCRIPTION|BRAND|REFERENCE_WEIGHT|REFERENCE_VOLUME|PRODUCT_TYPE|UNIT_NAME|ACTIVE\n"
                         .getBytes(StandardCharsets.UTF_8));
         Response response = resource.importProducts(in);
         assertEquals(200, response.getStatus());

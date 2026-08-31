@@ -213,35 +213,35 @@ class GroupQIT {
     private static final String FAMILIES_IMPORT = "/product-families/import";
 
     /**
-     * The rule CSV header line (skipped on every import).
+     * The rule CSV header line (columns resolved by name on every import).
      */
     private static final String RULE_HEADER =
-            "code|type|label|validFrom|validTo|priority|exclusive|monthlyCapPerCard|active|specification";
+            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION";
 
     /**
-     * The adjustment CSV header line (skipped on every import).
+     * The adjustment CSV header line (columns resolved by name on every import).
      */
-    private static final String ADJ_HEADER = "reference|cardNumber|amount|movementDate|reason";
+    private static final String ADJ_HEADER = "REFERENCE|CARD_NUMBER|AMOUNT|MOVEMENT_DATE|REASON";
 
     /**
-     * The membership CSV header line (skipped on every import).
+     * The membership CSV header line (columns resolved by name on every import).
      */
-    private static final String MEMBERSHIP_HEADER = "cardNumber|communityCode|validFrom|validTo";
+    private static final String MEMBERSHIP_HEADER = "CARD_NUMBER|COMMUNITY_CODE|VALID_FROM|VALID_TO";
 
     /**
-     * The activation CSV header line (skipped on every import).
+     * The activation CSV header line (columns resolved by name on every import).
      */
-    private static final String ACTIVATION_HEADER = "cardNumber|ruleCode|periodStart|periodEnd|missionDone";
+    private static final String ACTIVATION_HEADER = "CARD_NUMBER|RULE_CODE|PERIOD_START|PERIOD_END|MISSION_DONE";
 
     /**
-     * The visit CSV header line (skipped on every import).
+     * The visit CSV header line (columns resolved by name on every import).
      */
-    private static final String VISIT_HEADER = "ticketRef|cardNumber|storeCode|fiscalDate";
+    private static final String VISIT_HEADER = "TICKET_REF|CARD_NUMBER|STORE_CODE|FISCAL_DATE";
 
     /**
-     * The family CSV header line (skipped on every import).
+     * The family CSV header line (columns resolved by name on every import).
      */
-    private static final String FAMILY_HEADER = "code|description|flags|product_eans|family_codes";
+    private static final String FAMILY_HEADER = "CODE|DESCRIPTION|FLAGS|PRODUCT_EANS|SUBFAMILY_CODES";
 
     /**
      * Freezes the program clock before each scenario so the temporal rule guards are literal

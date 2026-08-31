@@ -27,9 +27,9 @@ import java.util.Set;
  * two importers (§18). It creates families and reconciles their two relations:
  * member products (by EAN) and sub-families (by code).
  * <p>
- * The file format matches imvaluation's family file (5 pipe-delimited columns):
- * {@code code|description|flags|product_eans|family_codes}, where
- * {@code product_eans} and {@code family_codes} are comma-separated lists.
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CODE (key), DESCRIPTION, FLAGS, PRODUCT_EANS,
+ * SUBFAMILY_CODES — the last two being comma-separated lists.
  * <p>
  * A missing product or sub-family, or a self-reference, raises an exception that
  * rolls the chunk back and triggers the staged fallback so the offending row is
@@ -41,10 +41,20 @@ import java.util.Set;
 @RunOnVirtualThread
 public class ProductFamilyCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the family CSV.
-     */
-    private static final int COLUMNS = 5;
+    /** Header name of the natural key: the family code. */
+    static final String COL_CODE = "CODE";
+    /** Header name of the family description. */
+    static final String COL_DESCRIPTION = "DESCRIPTION";
+    /** Header name of the family flags. */
+    static final String COL_FLAGS = "FLAGS";
+    /** Header name of the comma-separated member product EANs. */
+    static final String COL_PRODUCT_EANS = "PRODUCT_EANS";
+    /** Header name of the comma-separated sub-family codes. */
+    static final String COL_SUBFAMILY_CODES = "SUBFAMILY_CODES";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_DESCRIPTION, COL_FLAGS, COL_PRODUCT_EANS, COL_SUBFAMILY_CODES);
 
     /**
      * Context key holding the pre-fetched products map (EAN &rarr; Product).
@@ -66,7 +76,7 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importProductFamilies(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CODE, REQUIRED_COLUMNS);
     }
 
     /**
@@ -102,7 +112,7 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
     private Set<String> collectEans(List<LineData> parsedLines) {
         Set<String> eans = new HashSet<>();
         for (LineData data : parsedLines) {
-            eans.addAll(parseCodes(safeGet(data.parts, 3)));
+            eans.addAll(parseCodes(safeGet(data, COL_PRODUCT_EANS)));
         }
         return eans;
     }
@@ -116,7 +126,7 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
     private Set<String> collectSubFamilyCodes(List<LineData> parsedLines) {
         Set<String> codes = new HashSet<>();
         for (LineData data : parsedLines) {
-            codes.addAll(parseCodes(safeGet(data.parts, 4)));
+            codes.addAll(parseCodes(safeGet(data, COL_SUBFAMILY_CODES)));
         }
         return codes;
     }
@@ -163,8 +173,8 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
      */
     @Override
     protected void processLineLogic(LineData data, Map<String, Object> entityMap, int[] counters) {
-        List<String> requestedEans = parseCodes(safeGet(data.parts, 3));
-        List<String> requestedSubCodes = parseCodes(safeGet(data.parts, 4));
+        List<String> requestedEans = parseCodes(safeGet(data, COL_PRODUCT_EANS));
+        List<String> requestedSubCodes = parseCodes(safeGet(data, COL_SUBFAMILY_CODES));
         Map<String, Product> productMap = retrieveProducts(entityMap, requestedEans);
         Map<String, ProductFamily> subFamilyMap = retrieveSubFamilies(entityMap, requestedSubCodes);
         ProductFamily family = (ProductFamily) entityMap.get(data.code);
@@ -207,8 +217,8 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
      */
     private void feedFamily(LineData data, ProductFamily family, List<String> requestedEans, Map<String, Product> productMap,
                             List<String> requestedSubCodes, Map<String, ProductFamily> subFamilyMap) {
-        family.description = safeGet(data.parts, 1);
-        family.flags = safeGet(data.parts, 2);
+        family.description = safeGet(data, COL_DESCRIPTION);
+        family.flags = safeGet(data, COL_FLAGS);
         linkProducts(family, requestedEans, productMap);
         linkSubFamilies(family, requestedSubCodes, subFamilyMap);
     }
@@ -298,8 +308,8 @@ public class ProductFamilyCsvResource extends ImporterCsvResource {
     private int computeIncomingChecksum(LineData data) {
         return Objects.hash(
                 data.code,
-                safeGet(data.parts, 1),
-                safeGet(data.parts, 2)
+                safeGet(data, COL_DESCRIPTION),
+                safeGet(data, COL_FLAGS)
         );
     }
 }

@@ -1,4 +1,4 @@
-code|type|label|validFrom|validTo|priority|exclusive|monthlyCapPerCard|active|specification
+CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION
 SOCLE_5_MARQUES|BRAND_TIERED_EARN|Marques du quotidien (5 marques)|2026-05-18T00:00:00||100|true||true|{"scope":{"include":{"brands":["Pâturages","Paquito","Fiorini","Labell","Mäy"]}},"minEligibleItems":3,"baseRate":0.05,"boostedRate":0.10,"visitThreshold":4}
 SOCLE_4_MARQUES|BRAND_TIERED_EARN|Marques du quotidien (4 marques, historique clos)|2022-07-01T00:00:00|2026-05-18T00:00:00|100|true||true|{"scope":{"include":{"brands":["Pâturages","Paquito","Fiorini","Labell"]}},"minEligibleItems":3,"baseRate":0.05,"boostedRate":0.10,"visitThreshold":4}
 FL_WEEKEND|CALENDAR_FAMILY_EARN|Fruits & Légumes du week-end|2026-01-01T00:00:00||90|true||true|{"scope":{"include":{"families":["F_L"]}},"rate":0.10,"activeDays":["SATURDAY","SUNDAY"]}

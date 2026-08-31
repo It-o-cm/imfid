@@ -29,10 +29,11 @@ import java.util.Set;
  * activation is active at the fiscal date (§31.1). A row is matched on
  * {@code (account, ruleCode, periodStart)}.
  * <p>
- * File format (5 pipe-delimited columns):
- * {@code cardNumber|ruleCode|periodStart|periodEnd|missionDone}, dates in ISO
- * local date; a blank {@code periodEnd} leaves the period open. An unknown card,
- * or a missing {@code ruleCode}/{@code periodStart}, fails the row and triggers
+ * Consumed columns (resolved by header name; unknown columns of the shared
+ * feed are ignored): CARD_NUMBER (key), RULE_CODE, PERIOD_START, PERIOD_END,
+ * MISSION_DONE, dates in ISO
+ * local date; a blank {@code PERIOD_END} leaves the period open. An unknown card,
+ * or a missing {@code RULE_CODE}/{@code PERIOD_START}, fails the row and triggers
  * the staged fallback. The {@code fid-admin} role guard (§24.1) is attached in the
  * security build step.
  */
@@ -41,10 +42,20 @@ import java.util.Set;
 @RunOnVirtualThread
 public class FidelityActivationCsvResource extends ImporterCsvResource {
 
-    /**
-     * Number of columns expected in the activation CSV.
-     */
-    private static final int COLUMNS = 5;
+    /** Header name of the natural key: the activated card number. */
+    static final String COL_CARD_NUMBER = "CARD_NUMBER";
+    /** Header name of the activated rule code. */
+    static final String COL_RULE_CODE = "RULE_CODE";
+    /** Header name of the activation period start. */
+    static final String COL_PERIOD_START = "PERIOD_START";
+    /** Header name of the activation period end. */
+    static final String COL_PERIOD_END = "PERIOD_END";
+    /** Header name of the completed-mission flag. */
+    static final String COL_MISSION_DONE = "MISSION_DONE";
+
+    /** The columns this importer cannot work without. */
+    private static final List<String> REQUIRED_COLUMNS = List.of(
+            COL_RULE_CODE, COL_PERIOD_START, COL_PERIOD_END, COL_MISSION_DONE);
 
     /**
      * Context key holding the pre-fetched accounts map (card number &rarr; account).
@@ -61,7 +72,7 @@ public class FidelityActivationCsvResource extends ImporterCsvResource {
     @Consumes({MediaType.TEXT_PLAIN, MediaType.APPLICATION_OCTET_STREAM})
     @Produces(MediaType.APPLICATION_JSON)
     public Response importActivations(InputStream inputStream) {
-        return this.importCsvStream(inputStream, COLUMNS);
+        return this.importCsvStream(inputStream, COL_CARD_NUMBER, REQUIRED_COLUMNS);
     }
 
     /**
@@ -103,16 +114,16 @@ public class FidelityActivationCsvResource extends ImporterCsvResource {
         if (account == null) {
             throw new IllegalArgumentException("Card '" + data.code + "' not found.");
         }
-        String ruleCode = safeGetNonBlank(data.parts, 1);
+        String ruleCode = safeGetNonBlank(data, COL_RULE_CODE);
         if (ruleCode == null) {
             throw new IllegalArgumentException("ruleCode is mandatory.");
         }
-        LocalDate periodStart = safeParseLocalDate(data.parts, 2);
+        LocalDate periodStart = safeParseLocalDate(data, COL_PERIOD_START);
         if (periodStart == null) {
             throw new IllegalArgumentException("periodStart is mandatory.");
         }
-        LocalDate periodEnd = safeParseLocalDate(data.parts, 3);
-        boolean missionDone = safeParseBoolean(data.parts, 4);
+        LocalDate periodEnd = safeParseLocalDate(data, COL_PERIOD_END);
+        boolean missionDone = safeParseBoolean(data, COL_MISSION_DONE);
         FidelityActivation activation = FidelityActivation.find(
                 "account = ?1 and ruleCode = ?2 and periodStart = ?3", account, ruleCode, periodStart).firstResult();
         if (activation == null) {

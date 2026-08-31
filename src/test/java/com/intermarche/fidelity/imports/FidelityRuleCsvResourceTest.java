@@ -22,6 +22,7 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -67,13 +68,24 @@ class FidelityRuleCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * Builds a parsed CSV row whose code is the trimmed first column.
+     * Header names of the fixture rows, in cell order.
+     */
+    private static final String[] TEST_HEADER = {"CODE", "TYPE", "LABEL", "VALID_FROM", "VALID_TO", "PRIORITY", "EXCLUSIVE", "MONTHLY_CAP_PER_CARD", "ACTIVE", "SPECIFICATION"};
+
+    /**
+     * Builds a header-bound CSV row from positional fixture cells: the header
+     * maps {@link #TEST_HEADER} onto the cell positions and the first name is
+     * the key column.
      *
-     * @param parts The row's raw columns.
-     * @return The line carrying line number 2 and the trimmed key.
+     * @param parts The row's raw cells.
+     * @return The line carrying line number 2 and the header-resolved key.
      */
     private LineData line(String... parts) {
-        return new LineData(2, parts[0].trim(), parts);
+        Map<String, Integer> header = new LinkedHashMap<>();
+        for (int i = 0; i < TEST_HEADER.length; i++) {
+            header.put(TEST_HEADER[i], i);
+        }
+        return new LineData(2, header, parts, TEST_HEADER[0]);
     }
 
     /**
@@ -139,7 +151,7 @@ class FidelityRuleCsvResourceTest {
     @DisplayName("importRules(): a header-only stream yields an empty report")
     void importRulesHeaderOnly() {
         InputStream in = new ByteArrayInputStream(
-                ("code|type|label|validFrom|validTo|priority|exclusive|monthlyCapPerCard|active|specification\n")
+                ("CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION\n")
                         .getBytes(StandardCharsets.UTF_8));
         Response response = resource.importRules(in);
         assertEquals(200, response.getStatus());
@@ -451,44 +463,44 @@ class FidelityRuleCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * The short-row arm: fewer than {@code SPEC_INDEX + 1} columns has no specification column, so the
-     * result is null.
+     * The short-row arm: a row with fewer cells than the header-resolved SPECIFICATION index has no
+     * specification cell, so the result is null.
      */
     @Test
-    @DisplayName("specificationOf(): a row without the specification column yields null")
+    @DisplayName("specificationOf(): a row without the specification cell yields null")
     void specificationOfShortRow() {
-        String[] parts = {"a", "b"};
-        assertNull(invoke("specificationOf", new Class<?>[]{String[].class}, (Object) parts));
+        assertNull(invoke("specificationOf", new Class<?>[]{LineData.class}, line("a", "b")));
     }
 
     /**
-     * The single-column arm, non-null: exactly ten columns returns the trimmed lone specification.
+     * The single-cell arm, non-null: exactly as many cells as the header returns the trimmed lone
+     * specification.
      */
     @Test
-    @DisplayName("specificationOf(): a single specification column is trimmed")
+    @DisplayName("specificationOf(): a single specification cell is trimmed")
     void specificationOfSingleColumn() {
         String[] parts = new String[10];
         parts[9] = "  {\"rate\":0.05}  ";
         assertEquals("{\"rate\":0.05}",
-                invoke("specificationOf", new Class<?>[]{String[].class}, (Object) parts));
+                invoke("specificationOf", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     /**
-     * The single-column arm, null: exactly ten columns with a null specification cell yields null (the
-     * {@code single == null ? null} ternary).
+     * The single-cell arm, null: exactly as many cells as the header with a null specification cell
+     * yields null (the {@code single == null ? null} ternary).
      */
     @Test
-    @DisplayName("specificationOf(): a null single specification column yields null")
+    @DisplayName("specificationOf(): a null single specification cell yields null")
     void specificationOfSingleColumnNull() {
         String[] parts = new String[10];
         parts[9] = null;
-        assertNull(invoke("specificationOf", new Class<?>[]{String[].class}, (Object) parts));
+        assertNull(invoke("specificationOf", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     /**
-     * The join arm: more than ten columns re-joins the tail with the pipe delimiter, treating a null
-     * tail cell as an empty fragment (both legs of the in-loop null ternary, and the {@code i >
-     * SPEC_INDEX} guard on both arms).
+     * The join arm: more cells than the header re-joins the tail with the pipe delimiter from the
+     * SPECIFICATION index on, treating a null tail cell as an empty fragment (both legs of the
+     * in-loop null ternary, and the {@code i > specIndex} guard on both arms).
      */
     @Test
     @DisplayName("specificationOf(): a delimiter-bearing specification is re-joined")
@@ -498,7 +510,7 @@ class FidelityRuleCsvResourceTest {
         parts[10] = null;
         parts[11] = "}";
         assertEquals("{\"a\":1||}",
-                invoke("specificationOf", new Class<?>[]{String[].class}, (Object) parts));
+                invoke("specificationOf", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     // --------------------------------------------------
@@ -506,7 +518,7 @@ class FidelityRuleCsvResourceTest {
     // --------------------------------------------------
 
     /**
-     * First leg true: a blank column resolves to a null value, so the rule defaults to active.
+     * First leg true: a blank ACTIVE column resolves to a null value, so the rule defaults to active.
      */
     @Test
     @DisplayName("parseActive(): a blank column defaults to true")
@@ -514,7 +526,7 @@ class FidelityRuleCsvResourceTest {
         String[] parts = new String[10];
         parts[8] = "";
         assertEquals(Boolean.TRUE,
-                invoke("parseActive", new Class<?>[]{String[].class, int.class}, (Object) parts, 8));
+                invoke("parseActive", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     /**
@@ -526,7 +538,7 @@ class FidelityRuleCsvResourceTest {
         String[] parts = new String[10];
         parts[8] = "true";
         assertEquals(Boolean.TRUE,
-                invoke("parseActive", new Class<?>[]{String[].class, int.class}, (Object) parts, 8));
+                invoke("parseActive", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     /**
@@ -538,7 +550,7 @@ class FidelityRuleCsvResourceTest {
         String[] parts = new String[10];
         parts[8] = "false";
         assertEquals(Boolean.FALSE,
-                invoke("parseActive", new Class<?>[]{String[].class, int.class}, (Object) parts, 8));
+                invoke("parseActive", new Class<?>[]{LineData.class}, line(parts)));
     }
 
     // --------------------------------------------------

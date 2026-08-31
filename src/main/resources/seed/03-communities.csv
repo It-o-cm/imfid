@@ -1,4 +1,4 @@
-code|label|monthlyCap|enrollmentCap|renewalStartMonth|renewalEndMonth|eligibilityCriteria
+CODE|LABEL|MONTHLY_CAP|ENROLLMENT_CAP|RENEWAL_START_MONTH|RENEWAL_END_MONTH|ELIGIBILITY_CRITERIA
 BABIES|Intermarché Bébés|30.00||||Personne s'occupant d'un enfant de moins de 2 ans ou à naître
 LARGE_FAMILIES|Intermarché Familles Nombreuses|20.00||||3 enfants nés et plus dont un de moins de 18 ans
 STUDENTS|Intermarché Étudiants|20.00|100000|10|10|Étudiants de 18 à 28 ans révolus
