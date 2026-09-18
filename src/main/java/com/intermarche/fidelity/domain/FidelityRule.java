@@ -138,6 +138,22 @@ public class FidelityRule extends BaseEntity {
     public String specification;
 
     /**
+     * The advantage type the POS groups this rule's earn under on the ticket
+     * (closed {@code AdvantageType} referential, RFP BO-03-03-25). Mandatory on a
+     * crediting rule, null on a {@code PROGRAM_EXCLUSION}; immutable once the
+     * rule is closed, like the specification (§18).
+     */
+    @Column(name = "advantage_type", length = 30)
+    public String advantageType;
+
+    /**
+     * The optional advantage category ({@code AdvantageCategory} referential,
+     * RFP BO-03-03-33); null when the rule carries none.
+     */
+    @Column(name = "advantage_category", length = 30)
+    public String advantageCategory;
+
+    /**
      * Start of the validity window (inclusive), interpreted at the program zone.
      */
     @Column(name = "valid_from", nullable = false)
@@ -371,6 +387,6 @@ public class FidelityRule extends BaseEntity {
     @Override
     public int getChecksum() {
         return Objects.hash(code, type, label, specification, validFrom, validTo,
-                priority, exclusive, monthlyCapPerCard, active);
+                priority, exclusive, monthlyCapPerCard, active, advantageType, advantageCategory);
     }
 }

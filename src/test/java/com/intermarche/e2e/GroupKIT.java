@@ -124,7 +124,7 @@ class GroupKIT {
      * The rule CSV header line (columns resolved by name on every import).
      */
     private static final String RULE_HEADER =
-            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION";
+            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|ADVANTAGE_TYPE|ADVANTAGE_CATEGORY|SPECIFICATION";
 
     /**
      * The adjustment CSV header line (columns resolved by name on every import).
@@ -309,7 +309,7 @@ class GroupKIT {
         String code = "ZZZ_K2";
         try {
             String create = csv(RULE_HEADER,
-                    code + "|BRAND_TIERED_EARN|Label K2|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC);
+                    code + "|BRAND_TIERED_EARN|Label K2|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC);
             Response created = importCsv(RULES_IMPORT, create);
             assertEquals(1, createdCount(created), "the rule is created (K2)");
             LocalDateTime firstUpdatedAt = ruleUpdatedAt(code);
@@ -319,7 +319,7 @@ class GroupKIT {
             assertEquals(0, updatedCount(replay), "an identical replay updates nothing — checksum hit (K2)");
             assertEquals(firstUpdatedAt, ruleUpdatedAt(code), "the identical replay leaves updated_at untouched (K2)");
             String changed = csv(RULE_HEADER,
-                    code + "|BRAND_TIERED_EARN|Changed K2|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC);
+                    code + "|BRAND_TIERED_EARN|Changed K2|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC);
             Response updated = importCsv(RULES_IMPORT, changed);
             assertEquals(1, updatedCount(updated), "a changed field reports one update (K2)");
             assertEquals("Changed K2", ruleLabel(code), "the changed label is persisted (K2)");
@@ -501,10 +501,10 @@ class GroupKIT {
         String directCode = "ZZZ_K8_DIRECT";
         try {
             String csv = csv(RULE_HEADER,
-                    "ZZZ_K8_MISSTYPE||No type|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC,
-                    "ZZZ_K8_UNKNOWN|ZZZ_TYPE_K8|Unknown type|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC,
-                    "ZZZ_K8_BADSPEC|BRAND_TIERED_EARN|Bad spec|2026-01-01T00:00:00||0|false||false|{}",
-                    "ZZZ_K8_NODATE|BRAND_TIERED_EARN|No validFrom|not-a-date||0|false||false|" + BRAND_SPEC);
+                    "ZZZ_K8_MISSTYPE||No type|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC,
+                    "ZZZ_K8_UNKNOWN|ZZZ_TYPE_K8|Unknown type|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC,
+                    "ZZZ_K8_BADSPEC|BRAND_TIERED_EARN|Bad spec|2026-01-01T00:00:00||0|false||false|PRODUCT||{}",
+                    "ZZZ_K8_NODATE|BRAND_TIERED_EARN|No validFrom|not-a-date||0|false||false|PRODUCT||" + BRAND_SPEC);
             Response report = importCsv(RULES_IMPORT, csv);
             assertEquals(0, createdCount(report), "no invalid rule row is created by the import (K8)");
             assertTrue(errorsContain(report, "missing rule type"), "a missing type is refused (K8)");

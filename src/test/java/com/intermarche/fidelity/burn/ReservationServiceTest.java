@@ -402,8 +402,8 @@ class ReservationServiceTest {
     @Test
     @DisplayName("confirm(): a null id is NOT_FOUND")
     void confirmNullId() {
-        ReservationService.ConfirmOutcome outcome = service.confirm(null, TODAY);
-        assertEquals(ReservationService.ConfirmOutcome.NOT_FOUND, outcome);
+        ReservationService.ConfirmResult outcome = service.confirm(null, TODAY);
+        assertEquals(ReservationService.ConfirmOutcome.NOT_FOUND, outcome.outcome);
         Mockito.verifyNoInteractions(ledger);
     }
 
@@ -416,8 +416,8 @@ class ReservationServiceTest {
     void confirmMissing() {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(9L)).thenReturn(null);
-            ReservationService.ConfirmOutcome outcome = service.confirm(9L, TODAY);
-            assertEquals(ReservationService.ConfirmOutcome.NOT_FOUND, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(9L, TODAY);
+            assertEquals(ReservationService.ConfirmOutcome.NOT_FOUND, outcome.outcome);
             Mockito.verifyNoInteractions(ledger);
         }
     }
@@ -436,8 +436,8 @@ class ReservationServiceTest {
         Mockito.when(ledger.lock("CARD1")).thenReturn(account);
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(1L)).thenReturn(reservation);
-            ReservationService.ConfirmOutcome outcome = service.confirm(1L, TODAY);
-            assertEquals(ReservationService.ConfirmOutcome.OK, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(1L, TODAY);
+            assertEquals(ReservationService.ConfirmOutcome.OK, outcome.outcome);
             Mockito.verify(ledger, Mockito.never()).post(any(), any(), any(), any(), any(), any(), any(), any());
         }
     }
@@ -456,8 +456,8 @@ class ReservationServiceTest {
         Mockito.when(ledger.lock("CARD1")).thenReturn(account);
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(1L)).thenReturn(reservation);
-            ReservationService.ConfirmOutcome outcome = service.confirm(1L, TODAY);
-            assertEquals(ReservationService.ConfirmOutcome.GONE, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(1L, TODAY);
+            assertEquals(ReservationService.ConfirmOutcome.GONE, outcome.outcome);
             Mockito.verify(ledger, Mockito.never()).post(any(), any(), any(), any(), any(), any(), any(), any());
         }
     }
@@ -477,8 +477,8 @@ class ReservationServiceTest {
         Mockito.when(ledger.lock("CARD1")).thenReturn(account);
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(1L)).thenReturn(reservation);
-            ReservationService.ConfirmOutcome outcome = service.confirm(1L, TODAY);
-            assertEquals(ReservationService.ConfirmOutcome.GONE, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(1L, TODAY);
+            assertEquals(ReservationService.ConfirmOutcome.GONE, outcome.outcome);
             Mockito.verify(ledger, Mockito.never()).post(any(), any(), any(), any(), any(), any(), any(), any());
         }
     }
@@ -501,8 +501,8 @@ class ReservationServiceTest {
         Mockito.when(ledger.lock("CARD1")).thenReturn(account);
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(1L)).thenReturn(reservation);
-            ReservationService.ConfirmOutcome outcome = service.confirm(1L, fiscal);
-            assertEquals(ReservationService.ConfirmOutcome.OK, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(1L, fiscal);
+            assertEquals(ReservationService.ConfirmOutcome.OK, outcome.outcome);
             assertEquals(ReservationState.CONFIRMED, reservation.state);
             Mockito.verify(ledger).post(eq(account), eq(MovementType.BURN),
                     argThat(a -> a.compareTo(new BigDecimal("-5.00")) == 0), eq(fiscal), isNull(),
@@ -527,8 +527,8 @@ class ReservationServiceTest {
         Mockito.when(ledger.lock("CARD1")).thenReturn(account);
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(1L)).thenReturn(reservation);
-            ReservationService.ConfirmOutcome outcome = service.confirm(1L, null);
-            assertEquals(ReservationService.ConfirmOutcome.OK, outcome);
+            ReservationService.ConfirmResult outcome = service.confirm(1L, null);
+            assertEquals(ReservationService.ConfirmOutcome.OK, outcome.outcome);
             assertEquals(ReservationState.CONFIRMED, reservation.state);
             Mockito.verify(ledger).post(eq(account), eq(MovementType.BURN),
                     argThat(a -> a.compareTo(new BigDecimal("-8.00")) == 0), eq(TODAY), isNull(),

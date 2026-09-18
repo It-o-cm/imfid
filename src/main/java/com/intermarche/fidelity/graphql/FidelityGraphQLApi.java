@@ -192,6 +192,9 @@ public class FidelityGraphQLApi {
      * @param monthlyCapPerCard The per-card cap, or null.
      * @param active            Whether active.
      * @param specification     The JSON specification.
+     * @param advantageType     The advantage-type code (RFP BO-03-03-25); mandatory
+     *                          on a crediting rule.
+     * @param advantageCategory The optional advantage-category code, or null.
      * @return The created rule.
      */
     @Mutation
@@ -200,9 +203,12 @@ public class FidelityGraphQLApi {
                                             @Name("validTo") LocalDateTime validTo, @Name("priority") int priority,
                                             @Name("exclusive") boolean exclusive,
                                             @Name("monthlyCapPerCard") BigDecimal monthlyCapPerCard,
-                                            @Name("active") boolean active, @Name("specification") String specification) throws GraphQLException {
+                                            @Name("active") boolean active, @Name("specification") String specification,
+                                            @Name("advantageType") String advantageType,
+                                            @Name("advantageCategory") String advantageCategory) throws GraphQLException {
         return guard(() -> GraphQLTypes.RuleType.of(admin.createRule(code, type, label, validFrom, validTo,
-                priority, exclusive, monthlyCapPerCard, active, specification)));
+                priority, exclusive, monthlyCapPerCard, active, specification,
+                advantageType, advantageCategory)));
     }
 
     /**

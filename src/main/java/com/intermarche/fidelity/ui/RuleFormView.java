@@ -1,9 +1,12 @@
 package com.intermarche.fidelity.ui;
 
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Set;
 
 /**
@@ -123,6 +126,26 @@ public final class RuleFormView {
     public String specification = "";
 
     /**
+     * The selected advantage-type code (RFP BO-03-03-25); empty when unset.
+     */
+    public String advantageType = "";
+
+    /**
+     * The selected advantage-category code, or empty when none.
+     */
+    public String advantageCategory = "";
+
+    /**
+     * The advantage-type referential, in ticket display order, for the select.
+     */
+    public List<AdvantageType> advantageTypes = List.of();
+
+    /**
+     * The advantage-category referential, by code, for the select.
+     */
+    public List<AdvantageCategory> advantageCategories = List.of();
+
+    /**
      * The aggregated {@code type -> schema} JSON published to the form generator (§12).
      */
     public String schemasJson;
@@ -204,6 +227,8 @@ public final class RuleFormView {
         view.exclusive = rule.exclusive;
         view.active = rule.active;
         view.specification = rule.specification;
+        view.advantageType = rule.advantageType != null ? rule.advantageType : "";
+        view.advantageCategory = rule.advantageCategory != null ? rule.advantageCategory : "";
         view.schemasJson = schemasJson;
         view.communitiesJson = communitiesJson;
         view.types = types;

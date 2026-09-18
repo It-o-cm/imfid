@@ -150,4 +150,14 @@ class CalendarFamilyEarnApplier extends AbstractEarnRuleApplier {
         }
         return null;
     }
+    /**
+     * Opts into the anonymous projection (§20, RFP BO-03-03-28): the mechanic depends
+     * on the basket families and the weekday alone.
+     *
+     * @return true.
+     */
+    @Override
+    public boolean appliesAnonymously() {
+        return true;
+    }
 }

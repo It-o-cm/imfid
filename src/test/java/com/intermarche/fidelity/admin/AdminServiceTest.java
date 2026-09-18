@@ -16,6 +16,7 @@ import com.intermarche.fidelity.domain.FidelityMembership;
 import com.intermarche.fidelity.domain.FidelityMovement;
 import com.intermarche.fidelity.domain.FidelityProgramSetting;
 import com.intermarche.fidelity.domain.FidelityReservation;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.domain.MovementType;
 import com.intermarche.fidelity.domain.ReservationState;
@@ -190,6 +191,17 @@ class AdminServiceTest {
      * @param <T>   The entity type.
      * @return The query mock.
      */
+    /**
+     * Stubs the PRODUCT advantage-type referential lookup (RFP BO-03-03-25) inside a
+     * {@code mockStatic(PanacheEntityBase)} block, so a success-path rule creation or
+     * update passes the mandatory-advantage validation.
+     *
+     * @param panache The active static mock.
+     */
+    private void stubProductAdvantage(org.mockito.MockedStatic<PanacheEntityBase> panache) {
+        panache.when(() -> PanacheEntityBase.find("code", "PRODUCT")).thenReturn(queryOf(new AdvantageType()));
+    }
+
     private <T> PanacheQuery<T> queryOf(T value) {
         @SuppressWarnings("unchecked")
         PanacheQuery<T> query = (PanacheQuery<T>) Mockito.mock(PanacheQuery.class,
@@ -225,7 +237,7 @@ class AdminServiceTest {
     @DisplayName("createRule(): a null code is refused")
     void createRuleNullCode() {
         assertThrows(AdminException.class, () -> service.createRule(
-                null, "T", "L", FIXED, null, 0, false, null, true, "{}"));
+                null, "T", "L", FIXED, null, 0, false, null, true, "{}", null, null));
     }
 
     /**
@@ -235,7 +247,7 @@ class AdminServiceTest {
     @DisplayName("createRule(): a blank type is refused")
     void createRuleBlankType() {
         assertThrows(AdminException.class, () -> service.createRule(
-                "R", " ", "L", FIXED, null, 0, false, null, true, "{}"));
+                "R", " ", "L", FIXED, null, 0, false, null, true, "{}", null, null));
     }
 
     /**
@@ -246,7 +258,7 @@ class AdminServiceTest {
     void createRuleUnknownType() {
         Mockito.when(registry.hasFactory("T")).thenReturn(false);
         assertThrows(AdminException.class, () -> service.createRule(
-                "R", "T", "L", FIXED, null, 0, false, null, true, "{}"));
+                "R", "T", "L", FIXED, null, 0, false, null, true, "{}", null, null));
     }
 
     /**
@@ -258,7 +270,7 @@ class AdminServiceTest {
         Mockito.when(registry.hasFactory("T")).thenReturn(true);
         Mockito.when(registry.validate("T", "{}")).thenReturn(List.of("boom"));
         assertThrows(AdminException.class, () -> service.createRule(
-                "R", "T", "L", FIXED, null, 0, false, null, true, "{}"));
+                "R", "T", "L", FIXED, null, 0, false, null, true, "{}", null, null));
     }
 
     /**
@@ -270,7 +282,7 @@ class AdminServiceTest {
         Mockito.when(registry.hasFactory("T")).thenReturn(true);
         Mockito.when(registry.validate("T", "{}")).thenReturn(List.of());
         assertThrows(AdminException.class, () -> service.createRule(
-                "R", "T", "L", null, null, 0, false, null, true, "{}"));
+                "R", "T", "L", null, null, 0, false, null, true, "{}", null, null));
     }
 
     /**
@@ -284,8 +296,9 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class);
              MockedConstruction<FidelityRule> cons = Mockito.mockConstruction(FidelityRule.class)) {
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of());
+            stubProductAdvantage(panache);
             FidelityRule created = service.createRule(
-                    "R", "T", "L", FIXED, FIXED.plusDays(1), 5, true, new BigDecimal("2.00"), true, "{}");
+                    "R", "T", "L", FIXED, FIXED.plusDays(1), 5, true, new BigDecimal("2.00"), true, "{}", "PRODUCT", null);
             assertSame(cons.constructed().get(0), created);
             assertEquals("R", created.code);
             assertEquals("T", created.type);
@@ -313,7 +326,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(existing));
             assertThrows(AdminException.class, () -> service.createRule(
-                    "R", "T", "L", FIXED, null, 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED, null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -331,8 +344,9 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class);
              MockedConstruction<FidelityRule> cons = Mockito.mockConstruction(FidelityRule.class)) {
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(existing));
+            stubProductAdvantage(panache);
             FidelityRule created = service.createRule(
-                    "R", "T", "L", FIXED.minusDays(5), FIXED, 0, false, null, true, "{}");
+                    "R", "T", "L", FIXED.minusDays(5), FIXED, 0, false, null, true, "{}", "PRODUCT", null);
             assertSame(cons.constructed().get(0), created);
         }
     }
@@ -351,8 +365,9 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class);
              MockedConstruction<FidelityRule> cons = Mockito.mockConstruction(FidelityRule.class)) {
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(existing));
+            stubProductAdvantage(panache);
             FidelityRule created = service.createRule(
-                    "R", "T", "L", FIXED, FIXED.plusDays(5), 0, false, null, true, "{}");
+                    "R", "T", "L", FIXED, FIXED.plusDays(5), 0, false, null, true, "{}", "PRODUCT", null);
             assertSame(cons.constructed().get(0), created);
         }
     }
@@ -371,7 +386,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(existing));
             assertThrows(AdminException.class, () -> service.createRule(
-                    "R", "T", "L", FIXED, FIXED.plusDays(20), 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED, FIXED.plusDays(20), 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -388,7 +403,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(null));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -403,7 +418,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -419,7 +434,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -435,7 +450,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", FIXED.plusDays(5), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -451,7 +466,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", null, null, 0, false, null, true, "{}"));
+                    "R", "T", "L", null, null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -468,7 +483,7 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", TODAY.minusDays(1).atStartOfDay(), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", TODAY.minusDays(1).atStartOfDay(), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -487,7 +502,7 @@ class AdminServiceTest {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(other));
             assertThrows(AdminException.class, () -> service.updateRule(
-                    "R", "T", "L", TODAY.atStartOfDay(), null, 0, false, null, true, "{}"));
+                    "R", "T", "L", TODAY.atStartOfDay(), null, 0, false, null, true, "{}", null, null));
         }
     }
 
@@ -504,9 +519,10 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(rule));
+            stubProductAdvantage(panache);
             FidelityRule updated = service.updateRule(
                     "R", "T", "L2", TODAY.atStartOfDay(), FIXED.plusDays(20), 9, true,
-                    new BigDecimal("3.00"), false, "{}");
+                    new BigDecimal("3.00"), false, "{}", "PRODUCT", null);
             assertSame(rule, updated);
             assertEquals("T", updated.type);
             assertEquals("L2", updated.label);
@@ -531,8 +547,9 @@ class AdminServiceTest {
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.find("code", "R")).thenReturn(queryOf(rule));
             panache.when(() -> PanacheEntityBase.list("code", "R")).thenReturn(List.of(other));
+            stubProductAdvantage(panache);
             FidelityRule updated = service.updateRule(
-                    "R", "T", "L", TODAY.atStartOfDay(), FIXED.plusDays(20), 0, false, null, true, "{}");
+                    "R", "T", "L", TODAY.atStartOfDay(), FIXED.plusDays(20), 0, false, null, true, "{}", "PRODUCT", null);
             assertSame(rule, updated);
         }
     }

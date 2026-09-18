@@ -10,6 +10,8 @@ import com.intermarche.fidelity.domain.FidelityMembership;
 import com.intermarche.fidelity.domain.FidelityMovement;
 import com.intermarche.fidelity.domain.FidelityProgramSetting;
 import com.intermarche.fidelity.domain.FidelityReservation;
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.domain.MovementType;
 import com.intermarche.fidelity.domain.util.CardNumberGenerator;
@@ -81,12 +83,16 @@ public class AdminService {
      * @param monthlyCapPerCard The per-card monthly cap, or null.
      * @param active            Whether the rule is active.
      * @param specification     The JSON specification.
+     * @param advantageType     The advantage-type code (RFP BO-03-03-25); mandatory
+     *                          on a crediting rule, ignored on a program exclusion.
+     * @param advantageCategory The optional advantage-category code, or null.
      * @return The created rule.
      */
     @Transactional
     public FidelityRule createRule(String code, String type, String label, LocalDateTime validFrom,
                                    LocalDateTime validTo, int priority, boolean exclusive,
-                                   BigDecimal monthlyCapPerCard, boolean active, String specification) {
+                                   BigDecimal monthlyCapPerCard, boolean active, String specification,
+                                   String advantageType, String advantageCategory) {
         requireText(code, "code");
         requireText(type, "type");
         if (!registry.hasFactory(type)) {
@@ -104,6 +110,7 @@ public class AdminService {
                 throw new AdminException("Rule window overlaps an existing instance of code '" + code + "'");
             }
         }
+        validateAdvantage(type, advantageType, advantageCategory);
         FidelityRule rule = new FidelityRule();
         rule.code = code;
         rule.type = type;
@@ -115,6 +122,8 @@ public class AdminService {
         rule.monthlyCapPerCard = monthlyCapPerCard;
         rule.active = active;
         rule.specification = specification;
+        rule.advantageType = advantageTypeOf(type, advantageType);
+        rule.advantageCategory = advantageCategory;
         rule.persist();
         return rule;
     }
@@ -136,12 +145,16 @@ public class AdminService {
      * @param monthlyCapPerCard The per-card monthly cap, or null.
      * @param active            Whether the rule is active.
      * @param specification     The JSON specification.
+     * @param advantageType     The advantage-type code (RFP BO-03-03-25); mandatory
+     *                          on a crediting rule, ignored on a program exclusion.
+     * @param advantageCategory The optional advantage-category code, or null.
      * @return The updated rule.
      */
     @Transactional
     public FidelityRule updateRule(String code, String type, String label, LocalDateTime validFrom,
                                    LocalDateTime validTo, int priority, boolean exclusive,
-                                   BigDecimal monthlyCapPerCard, boolean active, String specification) {
+                                   BigDecimal monthlyCapPerCard, boolean active, String specification,
+                                   String advantageType, String advantageCategory) {
         FidelityRule rule = FidelityRule.findByCode(code);
         if (rule == null) {
             throw new AdminException("No rule with code '" + code + "'");
@@ -168,6 +181,7 @@ public class AdminService {
                 throw new AdminException("Rule window overlaps an existing instance of code '" + code + "'");
             }
         }
+        validateAdvantage(type, advantageType, advantageCategory);
         rule.type = type;
         rule.label = label;
         rule.validFrom = validFrom;
@@ -177,8 +191,49 @@ public class AdminService {
         rule.monthlyCapPerCard = monthlyCapPerCard;
         rule.active = active;
         rule.specification = specification;
+        rule.advantageType = advantageTypeOf(type, advantageType);
+        rule.advantageCategory = advantageCategory;
         rule.persist();
         return rule;
+    }
+
+    /**
+     * Resolves the stored advantage type of a rule (RFP BO-03-03-25): none on a
+     * program exclusion, the validated mandatory code otherwise.
+     *
+     * @param type          The rule (mechanic) type.
+     * @param advantageType The provided advantage-type code, already validated.
+     * @return The advantage type to store, or null for a program exclusion.
+     */
+    private static String advantageTypeOf(String type, String advantageType) {
+        return FidelityRule.TYPE_PROGRAM_EXCLUSION.equals(type) ? null : advantageType.trim();
+    }
+
+    /**
+     * Validates the advantage attributes of a rule against their referentials
+     * (RFP BO-03-03-25/-33): a crediting rule must carry a known advantage type —
+     * on every channel, the closed nomenclature admits no silent default — while a
+     * program exclusion carries none; a category, always optional, must exist when
+     * given.
+     *
+     * @param type              The rule (mechanic) type.
+     * @param advantageType     The advantage-type code, or null.
+     * @param advantageCategory The advantage-category code, or null.
+     * @throws AdminException on a missing or unknown code.
+     */
+    private void validateAdvantage(String type, String advantageType, String advantageCategory) {
+        if (!FidelityRule.TYPE_PROGRAM_EXCLUSION.equals(type)) {
+            if (advantageType == null || advantageType.isBlank()) {
+                throw new AdminException("An advantage type is mandatory on a crediting rule (§18)");
+            }
+            if (AdvantageType.findByCode(advantageType.trim()) == null) {
+                throw new AdminException("Unknown advantage type '" + advantageType + "' (§18)");
+            }
+        }
+        if (advantageCategory != null && !advantageCategory.isBlank()
+                && AdvantageCategory.findByCode(advantageCategory) == null) {
+            throw new AdminException("Unknown advantage category '" + advantageCategory + "' (§18)");
+        }
     }
 
     /**
@@ -270,6 +325,8 @@ public class AdminService {
         copy.monthlyCapPerCard = source.monthlyCapPerCard;
         copy.active = source.active;
         copy.specification = source.specification;
+        copy.advantageType = source.advantageType;
+        copy.advantageCategory = source.advantageCategory;
         copy.persist();
         return copy;
     }

@@ -439,10 +439,10 @@ class RuleUiResourceTest {
     @DisplayName("create: success parses date-only and date-time bounds and a valid cap")
     void createSuccess() {
         Response response = resource.create("R1", "COMMUNITY_EARN", "Label", "2026-08-10",
-                "2026-08-11T12:30", 5, true, "5.00", true, "{}");
+                "2026-08-11T12:30", 5, true, "5.00", true, "{}", null, null);
         verify(admin).createRule(eq("R1"), eq("COMMUNITY_EARN"), eq("Label"),
                 eq(LocalDateTime.of(2026, 8, 10, 0, 0)), eq(LocalDateTime.of(2026, 8, 11, 12, 30)),
-                eq(5), eq(true), eq(new BigDecimal("5.00")), eq(true), eq("{}"));
+                eq(5), eq(true), eq(new BigDecimal("5.00")), eq(true), eq("{}"), isNull(), isNull());
         assertEquals(Response.Status.SEE_OTHER.getStatusCode(), response.getStatus());
         assertEquals("/ui/rules", response.getLocation().getPath());
         assertTrue(response.getLocation().getQuery().contains("notice=Rule+R1+created"));
@@ -459,9 +459,9 @@ class RuleUiResourceTest {
     @DisplayName("create: refusal parses null/blank bounds and a malformed cap")
     void createFailure() {
         when(admin.createRule(eq("R1"), eq("COMMUNITY_EARN"), eq("Label"), isNull(), isNull(),
-                eq(0), eq(false), isNull(), eq(false), eq("{}"))).thenThrow(new AdminException("duplicate"));
+                eq(0), eq(false), isNull(), eq(false), eq("{}"), isNull(), isNull())).thenThrow(new AdminException("duplicate"));
         Response response = resource.create("R1", "COMMUNITY_EARN", "Label", null, "   ",
-                0, false, "xx", false, "{}");
+                0, false, "xx", false, "{}", null, null);
         assertEquals(Response.Status.SEE_OTHER.getStatusCode(), response.getStatus());
         assertEquals("/ui/rules/new", response.getLocation().getPath());
         assertTrue(response.getLocation().getQuery().contains("notice=duplicate"));
@@ -481,9 +481,9 @@ class RuleUiResourceTest {
     @DisplayName("update: success parses a malformed date and a null cap")
     void updateSuccess() {
         Response response = resource.update("R1", "COMMUNITY_EARN", "Label", "not-a-date",
-                null, 3, false, null, true, "{}");
+                null, 3, false, null, true, "{}", null, null);
         verify(admin).updateRule(eq("R1"), eq("COMMUNITY_EARN"), eq("Label"), isNull(), isNull(),
-                eq(3), eq(false), isNull(), eq(true), eq("{}"));
+                eq(3), eq(false), isNull(), eq(true), eq("{}"), isNull(), isNull());
         assertEquals(Response.Status.SEE_OTHER.getStatusCode(), response.getStatus());
         assertEquals("/ui/rules/R1", response.getLocation().getPath());
         assertTrue(response.getLocation().getQuery().contains("notice=Rule+R1+updated"));
@@ -499,9 +499,9 @@ class RuleUiResourceTest {
     void updateFailure() {
         when(admin.updateRule(eq("R1"), eq("COMMUNITY_EARN"), eq("Label"),
                 eq(LocalDateTime.of(2026, 8, 10, 0, 0)), isNull(), eq(0), eq(false), isNull(),
-                eq(false), eq("{}"))).thenThrow(new AdminException("in force"));
+                eq(false), eq("{}"), isNull(), isNull())).thenThrow(new AdminException("in force"));
         Response response = resource.update("R1", "COMMUNITY_EARN", "Label", "2026-08-10",
-                null, 0, false, "   ", false, "{}");
+                null, 0, false, "   ", false, "{}", null, null);
         assertEquals(Response.Status.SEE_OTHER.getStatusCode(), response.getStatus());
         assertEquals("/ui/rules/R1/edit", response.getLocation().getPath());
         assertTrue(response.getLocation().getQuery().contains("notice=in+force"));

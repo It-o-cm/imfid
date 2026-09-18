@@ -4,6 +4,8 @@ import com.intermarche.fidelity.admin.AdminException;
 import com.intermarche.fidelity.admin.AdminService;
 import com.intermarche.fidelity.domain.AppUser;
 import com.intermarche.fidelity.domain.FidelityCommunity;
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.domain.util.ProgramClock;
 import com.intermarche.fidelity.rule.EarnRuleRegistry;
@@ -164,12 +166,15 @@ public class RuleUiResource {
                                  @Context SecurityContext sc) {
         RuleFormView view = RuleFormView.creation(buildSchemasJson(), buildCommunitiesJson(),
                 new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
+        fillAdvantageReferentials(view);
         if (from != null && !from.isBlank()) {
             FidelityRule src = FidelityRule.findByCode(from.trim());
             if (src != null) {
                 view.code = src.code + "_V2";
                 view.type = src.type;
                 view.specification = src.specification;
+                view.advantageType = src.advantageType != null ? src.advantageType : "";
+                view.advantageCategory = src.advantageCategory != null ? src.advantageCategory : "";
             }
         }
         view.notice = notice;
@@ -200,6 +205,7 @@ public class RuleUiResource {
         }
         RuleFormView view = RuleFormView.consultation(rule, clock.now(), buildSchemasJson(),
                 buildCommunitiesJson(), new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
+        fillAdvantageReferentials(view);
         view.notice = notice;
         view.noticeOk = noticeOk;
         return Response.ok(Templates.form(view)).build();
@@ -231,6 +237,7 @@ public class RuleUiResource {
         }
         RuleFormView view = RuleFormView.edition(rule, buildSchemasJson(), buildCommunitiesJson(),
                 new TreeSet<>(registry.registeredTypes()), UiSupport.canWrite(sc));
+        fillAdvantageReferentials(view);
         view.notice = notice;
         view.noticeOk = noticeOk;
         return Response.ok(Templates.form(view)).build();
@@ -249,6 +256,8 @@ public class RuleUiResource {
      * @param cap           The per-card cap, or blank.
      * @param active        Whether active.
      * @param specification The JSON specification (built by the form JS).
+     * @param advantageType The advantage-type code (RFP BO-03-03-25).
+     * @param advantageCategory The optional advantage-category code, or blank.
      * @return A redirect with a notice.
      */
     @POST
@@ -258,10 +267,13 @@ public class RuleUiResource {
                            @FormParam("label") String label, @FormParam("validFrom") String validFrom,
                            @FormParam("validTo") String validTo, @FormParam("priority") @DefaultValue("0") int priority,
                            @FormParam("exclusive") boolean exclusive, @FormParam("monthlyCapPerCard") String cap,
-                           @FormParam("active") boolean active, @FormParam("specification") String specification) {
+                           @FormParam("active") boolean active, @FormParam("specification") String specification,
+                           @FormParam("advantageType") String advantageType,
+                           @FormParam("advantageCategory") String advantageCategory) {
         try {
             admin.updateRule(code, type, label, parseDateTime(validFrom), parseDateTime(validTo),
-                    priority, exclusive, parseDecimal(cap), active, specification);
+                    priority, exclusive, parseDecimal(cap), active, specification,
+                    blankToNull(advantageType), blankToNull(advantageCategory));
             return UiSupport.redirect("/ui/rules/" + code, "Rule " + code + " updated", true);
         } catch (AdminException e) {
             return UiSupport.redirect("/ui/rules/" + code + "/edit", e.getMessage(), false);
@@ -281,6 +293,8 @@ public class RuleUiResource {
      * @param cap           The per-card cap, or blank.
      * @param active        Whether active.
      * @param specification The JSON specification (built by the form JS).
+     * @param advantageType The advantage-type code (RFP BO-03-03-25).
+     * @param advantageCategory The optional advantage-category code, or blank.
      * @return A redirect with a notice.
      */
     @POST
@@ -290,10 +304,13 @@ public class RuleUiResource {
                            @FormParam("label") String label, @FormParam("validFrom") String validFrom,
                            @FormParam("validTo") String validTo, @FormParam("priority") @DefaultValue("0") int priority,
                            @FormParam("exclusive") boolean exclusive, @FormParam("monthlyCapPerCard") String cap,
-                           @FormParam("active") boolean active, @FormParam("specification") String specification) {
+                           @FormParam("active") boolean active, @FormParam("specification") String specification,
+                           @FormParam("advantageType") String advantageType,
+                           @FormParam("advantageCategory") String advantageCategory) {
         try {
             admin.createRule(code, type, label, parseDateTime(validFrom), parseDateTime(validTo),
-                    priority, exclusive, parseDecimal(cap), active, specification);
+                    priority, exclusive, parseDecimal(cap), active, specification,
+                    blankToNull(advantageType), blankToNull(advantageCategory));
             return UiSupport.redirect("/ui/rules", "Rule " + code + " created", true);
         } catch (AdminException e) {
             return UiSupport.redirect("/ui/rules/new", e.getMessage(), false);
@@ -412,5 +429,26 @@ public class RuleUiResource {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /**
+     * Normalizes an optional form value: null when blank, trimmed otherwise (§31.2).
+     *
+     * @param value The raw form value.
+     * @return The trimmed value, or null.
+     */
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    /**
+     * Fills a form view with the advantage referentials the selects render
+     * (RFP BO-03-03-25/-33).
+     *
+     * @param view The form view to fill.
+     */
+    private void fillAdvantageReferentials(RuleFormView view) {
+        view.advantageTypes = AdvantageType.listOrdered();
+        view.advantageCategories = AdvantageCategory.listByCode();
     }
 }

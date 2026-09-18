@@ -134,4 +134,14 @@ class ProgramExclusionApplier extends AbstractEarnRuleApplier {
         }
         return ids;
     }
+    /**
+     * Opts into the anonymous projection (§20, RFP BO-03-03-28): the CGU exclusions
+     * filter the assiette of any basket, carried or not.
+     *
+     * @return true.
+     */
+    @Override
+    public boolean appliesAnonymously() {
+        return true;
+    }
 }

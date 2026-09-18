@@ -2,6 +2,8 @@ package com.intermarche.fidelity.earn;
 
 import com.intermarche.fidelity.domain.FidelityAccount;
 import com.intermarche.fidelity.domain.FidelityCommunity;
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityProgramSetting;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.rule.CardContext;
@@ -81,22 +83,9 @@ public class EarnEngine {
         EarnResult result = new EarnResult(lines);
         result.warnings.addAll(reading.warnings);
 
-        List<FidelityRule> rulesInForce = FidelityRule.listInForceAt(evaluationDateTime);
-
         // 1. Split exclusions from producers; collect the program-excluded line ids.
         Set<String> excludedLineIds = new LinkedHashSet<>();
-        List<RuleApplier> producers = new ArrayList<>();
-        for (FidelityRule rule : rulesInForce) {
-            if (!registry.hasFactory(rule.type)) {
-                continue;
-            }
-            EarnRuleApplier applier = registry.createApplier(rule);
-            if (applier.isProducer()) {
-                producers.add(new RuleApplier(rule, applier));
-            } else {
-                excludedLineIds.addAll(applier.excludedLineIds(lines));
-            }
-        }
+        List<RuleApplier> producers = splitRules(evaluationDateTime, lines, excludedLineIds);
 
         // 2. Burnable base = totalPrice − net of the excluded lines, clamped to zero (§22.3).
         result.burnableBase = burnableBase(reading, lines, excludedLineIds);
@@ -107,6 +96,81 @@ public class EarnEngine {
         }
 
         CardContext context = contextBuilder.build(account, evaluationDateTime, countCurrentVisit);
+        applyProducers(result, producers, lines, excludedLineIds, context, false);
+        return result;
+    }
+
+    /**
+     * Evaluates the anonymous projection — "had you carried the card" (§20 respected,
+     * RFP BO-03-03-28): no account is resolved or created, nothing is credited and no
+     * trace is written. Only the appliers that declare
+     * {@link EarnRuleApplier#appliesAnonymously()} run, against a zero-history context
+     * (a fresh card: no visits, no memberships, no activations, empty cap cumulatives)
+     * — so the announced amount is what a card created on the spot would have earned,
+     * never an inflated promise. The burnable base stays zero: an anonymous customer
+     * has nothing to burn.
+     *
+     * @param reading            The valued basket reading (§22.1); must not be null.
+     * @param evaluationDateTime The fiscal evaluation instant at the program zone (§31.1).
+     * @return The evaluation result, never null, flagged {@code ANONYMOUS}.
+     */
+    public EarnResult evaluateAnonymous(ValuationReading reading, java.time.LocalDateTime evaluationDateTime) {
+        List<ValuedLine> lines = reading.lines;
+        EarnResult result = new EarnResult(lines);
+        result.projectionMode = EarnResponse.MODE_ANONYMOUS;
+        result.warnings.addAll(reading.warnings);
+
+        Set<String> excludedLineIds = new LinkedHashSet<>();
+        List<RuleApplier> producers = splitRules(evaluationDateTime, lines, excludedLineIds);
+
+        FidelityAccount ghost = new FidelityAccount();
+        ghost.cardNumber = "ANONYMOUS";
+        CardContext context = new CardContext(ghost, evaluationDateTime);
+        applyProducers(result, producers, lines, excludedLineIds, context, true);
+        return result;
+    }
+
+    /**
+     * Splits the rules in force into producers and program exclusions, collecting the
+     * excluded line ids of the latter (§15, §22.3).
+     *
+     * @param evaluationDateTime The fiscal evaluation instant.
+     * @param lines              The valued basket lines.
+     * @param excludedLineIds    The mutable sink of program-excluded line ids.
+     * @return The producers, in force order, never null.
+     */
+    private List<RuleApplier> splitRules(java.time.LocalDateTime evaluationDateTime,
+                                         List<ValuedLine> lines, Set<String> excludedLineIds) {
+        List<RuleApplier> producers = new ArrayList<>();
+        for (FidelityRule rule : FidelityRule.listInForceAt(evaluationDateTime)) {
+            if (!registry.hasFactory(rule.type)) {
+                continue;
+            }
+            EarnRuleApplier applier = registry.createApplier(rule);
+            if (applier.isProducer()) {
+                producers.add(new RuleApplier(rule, applier));
+            } else {
+                excludedLineIds.addAll(applier.excludedLineIds(lines));
+            }
+        }
+        return producers;
+    }
+
+    /**
+     * Runs the producers by descending priority, applying exclusivity and caps, and
+     * accumulates the entries and the total on the result (§15, I2, I5).
+     *
+     * @param result          The result to fill.
+     * @param producers       The producers, in force order.
+     * @param lines           The valued basket lines.
+     * @param excludedLineIds The program-excluded line ids.
+     * @param context         The card context (a zero-history one in anonymous mode).
+     * @param anonymousOnly   When true, only appliers declaring
+     *                        {@link EarnRuleApplier#appliesAnonymously()} run (§20,
+     *                        RFP BO-03-03-28).
+     */
+    private void applyProducers(EarnResult result, List<RuleApplier> producers, List<ValuedLine> lines,
+                                Set<String> excludedLineIds, CardContext context, boolean anonymousOnly) {
         BigDecimal globalCap = FidelityProgramSetting.getDecimal(
                 FidelityProgramSetting.KEY_GLOBAL_MONTHLY_CAP, DEFAULT_GLOBAL_CAP);
 
@@ -116,6 +180,9 @@ public class EarnEngine {
         Map<String, BigDecimal> runningCommunity = new LinkedHashMap<>(context.communityMonthlyEarn);
 
         for (RuleApplier producer : producers) {
+            if (anonymousOnly && !producer.applier.appliesAnonymously()) {
+                continue;
+            }
             List<ValuedLine> available = availableLines(lines, consumed);
             EarnEntry raw = producer.applier.apply(available, context);
             if (raw.isEmpty()) {
@@ -128,8 +195,10 @@ public class EarnEngine {
             BigDecimal granted = applyCaps(producer.rule, raw, context, runningGlobal, runningCommunity,
                     globalCap, result.capsApplied);
             if (granted.signum() > 0) {
-                result.entries.add(new EarnResponse.Entry(producer.rule.code, producer.rule.label,
-                        granted, raw.baseAmount, raw.lineIds));
+                EarnResponse.Entry entry = new EarnResponse.Entry(producer.rule.code, producer.rule.label,
+                        granted, raw.baseAmount, raw.lineIds);
+                fillAdvantage(entry, producer.rule);
+                result.entries.add(entry);
                 runningGlobal = runningGlobal.add(granted);
                 String communityCode = producer.rule.communityCodeFromSpec();
                 if (communityCode != null) {
@@ -139,7 +208,6 @@ public class EarnEngine {
             }
         }
         result.total = result.total.setScale(2, RoundingMode.HALF_UP);
-        return result;
     }
 
     /**
@@ -198,6 +266,34 @@ public class EarnEngine {
      * @param capsApplied      The cap trace list to append truncations to.
      * @return The granted amount after caps, euro at scale 2.
      */
+    /**
+     * Fills an entry's ticket-grouping attributes from its rule and the advantage
+     * referentials (RFP BO-03-03-25/-33): the POS groups on the codes and prints the
+     * labels — it never translates a code itself (§18). A rule created before the
+     * advantage referential existed may carry no type; the fields then stay null and
+     * the POS falls back to its flat list.
+     *
+     * @param entry The response entry to fill.
+     * @param rule  The crediting rule.
+     */
+    private void fillAdvantage(EarnResponse.Entry entry, FidelityRule rule) {
+        if (rule.advantageType != null) {
+            entry.advantageType = rule.advantageType;
+            AdvantageType type = AdvantageType.findByCode(rule.advantageType);
+            if (type != null) {
+                entry.advantageTypeLabel = type.label;
+                entry.advantageTypeOrder = type.displayOrder;
+            }
+        }
+        if (rule.advantageCategory != null) {
+            entry.advantageCategory = rule.advantageCategory;
+            AdvantageCategory category = AdvantageCategory.findByCode(rule.advantageCategory);
+            if (category != null) {
+                entry.advantageCategoryLabel = category.label;
+            }
+        }
+    }
+
     private BigDecimal applyCaps(FidelityRule rule, EarnEntry raw, CardContext context,
                                  BigDecimal runningGlobal, Map<String, BigDecimal> runningCommunity,
                                  BigDecimal globalCap, List<EarnResponse.CapApplied> capsApplied) {

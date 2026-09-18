@@ -216,7 +216,7 @@ class GroupQIT {
      * The rule CSV header line (columns resolved by name on every import).
      */
     private static final String RULE_HEADER =
-            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION";
+            "CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|ADVANTAGE_TYPE|ADVANTAGE_CATEGORY|SPECIFICATION";
 
     /**
      * The adjustment CSV header line (columns resolved by name on every import).
@@ -664,10 +664,10 @@ class GroupQIT {
     void qD0_importLineErrorsPerResource() {
         try {
             Response rules = importCsv(RULES_IMPORT, csv(RULE_HEADER,
-                    "ZZZ_Q_MISS||No type|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC,
-                    "ZZZ_Q_UNK|ZZZ_TYPE_Q|x|2026-01-01T00:00:00||0|false||false|" + BRAND_SPEC,
-                    "ZZZ_Q_BAD|BRAND_TIERED_EARN|x|2026-01-01T00:00:00||0|false||false|{}",
-                    "ZZZ_Q_NODATE|BRAND_TIERED_EARN|x|not-a-date||0|false||false|" + BRAND_SPEC));
+                    "ZZZ_Q_MISS||No type|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC,
+                    "ZZZ_Q_UNK|ZZZ_TYPE_Q|x|2026-01-01T00:00:00||0|false||false|PRODUCT||" + BRAND_SPEC,
+                    "ZZZ_Q_BAD|BRAND_TIERED_EARN|x|2026-01-01T00:00:00||0|false||false|PRODUCT||{}",
+                    "ZZZ_Q_NODATE|BRAND_TIERED_EARN|x|not-a-date||0|false||false|PRODUCT||" + BRAND_SPEC));
             assertEquals(200, rules.statusCode(), "a raw CSV import returns a 200 report (Q-D0)");
             assertEquals(0, rules.jsonPath().getInt("createdCount"), "no invalid rule row is created (Q-D0)");
             assertTrue(errorsContain(rules, "missing rule type"), "a missing rule type is refused (Q-D0)");
@@ -744,12 +744,14 @@ class GroupQIT {
         try {
             assertEquals("Rule ZZZ_Q_D_NEW created",
                     noticeOf(postForm("/ui/rules/create", "code", "ZZZ_Q_D_NEW", "type", "BRAND_TIERED_EARN", "label", "x",
-                            "validFrom", "2027-01-01", "specification", BRAND_SPEC).header("Location")),
+                            "validFrom", "2027-01-01", "specification", BRAND_SPEC,
+                            "advantageType", "PRODUCT").header("Location")),
                     "creating a rule reports its created notice (Q-D)");
             persistRule("ZZZ_Q_D_UPD", "BRAND_TIERED_EARN", LocalDateTime.of(2027, 1, 1, 0, 0), null, BRAND_SPEC);
             assertEquals("Rule ZZZ_Q_D_UPD updated",
                     noticeOf(postForm("/ui/rules/ZZZ_Q_D_UPD/update", "type", "BRAND_TIERED_EARN", "label", "y",
-                            "validFrom", "2027-02-01", "specification", BRAND_SPEC).header("Location")),
+                            "validFrom", "2027-02-01", "specification", BRAND_SPEC,
+                            "advantageType", "PRODUCT").header("Location")),
                     "updating an upcoming rule reports its updated notice (Q-D)");
             assertEquals("Rule ZZZ_Q_D_UPD duplicated to ZZZ_Q_D_DUP",
                     noticeOf(postForm("/ui/rules/ZZZ_Q_D_UPD/duplicate", "newCode", "ZZZ_Q_D_DUP").header("Location")),

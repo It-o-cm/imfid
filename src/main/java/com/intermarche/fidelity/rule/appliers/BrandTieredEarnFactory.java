@@ -110,4 +110,15 @@ class BrandTieredEarnApplier extends AbstractEarnRuleApplier {
         BigDecimal amount = applyRate(assiette, rate);
         return entry(amount, assiette, eligible);
     }
+    /**
+     * Opts into the anonymous projection (§20, RFP BO-03-03-28): the assiette and the
+     * item threshold depend on the basket alone, and a zero-history context yields the
+     * base rate — never the visit-boosted one, so the announced amount stays a floor.
+     *
+     * @return true.
+     */
+    @Override
+    public boolean appliesAnonymously() {
+        return true;
+    }
 }

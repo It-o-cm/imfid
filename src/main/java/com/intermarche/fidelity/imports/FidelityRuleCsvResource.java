@@ -1,5 +1,7 @@
 package com.intermarche.fidelity.imports;
 
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.rule.EarnRuleRegistry;
 import io.quarkus.hibernate.orm.panache.Panache;
@@ -65,13 +67,24 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
     static final String COL_MONTHLY_CAP_PER_CARD = "MONTHLY_CAP_PER_CARD";
     /** Header name of the active flag. */
     static final String COL_ACTIVE = "ACTIVE";
+
+    /**
+     * The advantage-type column (RFP BO-03-03-25) — mandatory on a crediting rule.
+     */
+    static final String COL_ADVANTAGE_TYPE = "ADVANTAGE_TYPE";
+
+    /**
+     * The optional advantage-category column (RFP BO-03-03-33).
+     */
+    static final String COL_ADVANTAGE_CATEGORY = "ADVANTAGE_CATEGORY";
     /** Header name of the JSON specification (last column, possibly delimiter-bearing). */
     static final String COL_SPECIFICATION = "SPECIFICATION";
 
     /** The columns this importer cannot work without. */
     private static final List<String> REQUIRED_COLUMNS = List.of(
             COL_TYPE, COL_LABEL, COL_VALID_FROM, COL_VALID_TO, COL_PRIORITY,
-            COL_EXCLUSIVE, COL_MONTHLY_CAP_PER_CARD, COL_ACTIVE, COL_SPECIFICATION);
+            COL_EXCLUSIVE, COL_MONTHLY_CAP_PER_CARD, COL_ACTIVE,
+            COL_ADVANTAGE_TYPE, COL_ADVANTAGE_CATEGORY, COL_SPECIFICATION);
 
     /**
      * The registry validating the type and the specification of each rule (§12).
@@ -198,6 +211,47 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
         rule.monthlyCapPerCard = safeParseBigDecimal(data, COL_MONTHLY_CAP_PER_CARD);
         rule.active = parseActive(data);
         rule.specification = specificationOf(data);
+        rule.advantageType = advantageTypeOf(data, rule.type);
+        rule.advantageCategory = advantageCategoryOf(data);
+    }
+
+    /**
+     * Reads and validates the mandatory advantage type of a crediting row against
+     * the referential (RFP BO-03-03-25); a program exclusion carries none.
+     *
+     * @param data The parsed CSV line.
+     * @param type The rule (mechanic) type.
+     * @return The advantage-type code, or null for a program exclusion.
+     * @throws IllegalArgumentException when absent on a crediting row or unknown.
+     */
+    private String advantageTypeOf(LineData data, String type) {
+        String value = safeGetNonBlank(data, COL_ADVANTAGE_TYPE);
+        if (FidelityRule.TYPE_PROGRAM_EXCLUSION.equals(type)) {
+            return null;
+        }
+        if (value == null) {
+            throw new IllegalArgumentException("missing ADVANTAGE_TYPE on a crediting rule (§18)");
+        }
+        if (AdvantageType.findByCode(value) == null) {
+            throw new IllegalArgumentException("unknown advantage type '" + value + "' (§18)");
+        }
+        return value;
+    }
+
+    /**
+     * Reads and validates the optional advantage category of a row against the
+     * referential (RFP BO-03-03-33).
+     *
+     * @param data The parsed CSV line.
+     * @return The category code, or null when the column is blank.
+     * @throws IllegalArgumentException when the code is unknown.
+     */
+    private String advantageCategoryOf(LineData data) {
+        String value = safeGetNonBlank(data, COL_ADVANTAGE_CATEGORY);
+        if (value != null && AdvantageCategory.findByCode(value) == null) {
+            throw new IllegalArgumentException("unknown advantage category '" + value + "' (§18)");
+        }
+        return value;
     }
 
     /**
@@ -260,7 +314,9 @@ public class FidelityRuleCsvResource extends ImporterCsvResource {
                 priorityOf(data),
                 safeParseBoolean(data, COL_EXCLUSIVE),
                 safeParseBigDecimal(data, COL_MONTHLY_CAP_PER_CARD),
-                parseActive(data)
+                parseActive(data),
+                safeGetNonBlank(data, COL_ADVANTAGE_TYPE),
+                safeGetNonBlank(data, COL_ADVANTAGE_CATEGORY)
         );
     }
 

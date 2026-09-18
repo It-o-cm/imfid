@@ -414,9 +414,9 @@ class FidelityGraphQLApiTest {
         FidelityRule created = rule("R", "ECOUPON_EARN", true);
         LocalDateTime from = LocalDateTime.of(2026, 1, 1, 0, 0);
         BigDecimal cap = new BigDecimal("30.00");
-        Mockito.when(admin.createRule("R", "ECOUPON_EARN", "L", from, null, 5, true, cap, true, "{}"))
+        Mockito.when(admin.createRule("R", "ECOUPON_EARN", "L", from, null, 5, true, cap, true, "{}", null, null))
                 .thenReturn(created);
-        GraphQLTypes.RuleType result = api.createRule("R", "ECOUPON_EARN", "L", from, null, 5, true, cap, true, "{}");
+        GraphQLTypes.RuleType result = api.createRule("R", "ECOUPON_EARN", "L", from, null, 5, true, cap, true, "{}", null, null);
         assertEquals("R", result.code);
     }
 

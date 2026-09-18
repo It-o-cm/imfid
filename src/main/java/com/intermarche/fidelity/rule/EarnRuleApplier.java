@@ -60,4 +60,19 @@ public interface EarnRuleApplier {
     default Set<String> excludedLineIds(List<ValuedLine> lines) {
         return Set.of();
     }
+
+    /**
+     * Indicates whether the rule may run in the anonymous "had you carried the card"
+     * projection (§20, RFP BO-03-03-28) — true only for mechanics that depend on the
+     * basket and the date alone. A mechanic gated by the card's history, memberships
+     * or activations must keep the default {@code false}: including it would inflate
+     * the amount announced to a non-cardholder. The default is deliberately
+     * conservative — a new mechanic is out of the anonymous projection until its
+     * applier explicitly opts in.
+     *
+     * @return true when the applier runs in the anonymous projection.
+     */
+    default boolean appliesAnonymously() {
+        return false;
+    }
 }

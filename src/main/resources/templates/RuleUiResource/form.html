@@ -31,6 +31,20 @@
             </select></label>
         <label class="field"><span class="field-label">Libellé (imprimé sur le ticket) <em>*</em></span>
             <input class="input-control" type="text" name="label" value="{view.label}" required {#if view.readOnly}disabled{/if}></label>
+        <label class="field"><span class="field-label">Type d'avantage (regroupement ticket) <em>*</em></span>
+            <select class="input-control" name="advantageType" {#if view.readOnly}disabled{/if}>
+                <option value="" {#if view.advantageType == ''}selected{/if}>—</option>
+                {#for at in view.advantageTypes}
+                <option value="{at.code}" {#if view.advantageType == at.code}selected{/if}>{at.code} — {at.label}</option>
+                {/for}
+            </select></label>
+        <label class="field"><span class="field-label">Catégorie d'avantage</span>
+            <select class="input-control" name="advantageCategory" {#if view.readOnly}disabled{/if}>
+                <option value="" {#if view.advantageCategory == ''}selected{/if}>—</option>
+                {#for ac in view.advantageCategories}
+                <option value="{ac.code}" {#if view.advantageCategory == ac.code}selected{/if}>{ac.code} — {ac.label}</option>
+                {/for}
+            </select></label>
     </div>
     <div class="field-grid">
         <label class="field"><span class="field-label">Valide depuis <em>*</em></span>

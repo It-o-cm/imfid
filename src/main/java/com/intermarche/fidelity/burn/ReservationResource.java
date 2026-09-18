@@ -67,7 +67,8 @@ public class ReservationResource {
      *
      * @param id      The reservation id.
      * @param request The confirmation body (fiscalDate).
-     * @return 200 confirmed/idempotent; 404 unknown; 410 expired lease.
+     * @return 200 confirmed/idempotent with the ledger balances around the debit
+     *         (RFP BO-03-03-34); 404 unknown; 410 expired lease.
      */
     @POST
     @Path("/{id}/confirm")
@@ -75,10 +76,11 @@ public class ReservationResource {
     @Produces(MediaType.APPLICATION_JSON)
     public Response confirm(@PathParam("id") Long id, ReservationDtos.ConfirmRequest request) {
         java.time.LocalDate fiscalDate = request != null ? request.fiscalDate : null;
-        ReservationService.ConfirmOutcome outcome = service.confirm(id, fiscalDate);
-        switch (outcome) {
+        ReservationService.ConfirmResult result = service.confirm(id, fiscalDate);
+        switch (result.outcome) {
             case OK:
-                return Response.ok().build();
+                return Response.ok(new ReservationDtos.ConfirmResponse(result.balanceBefore,
+                        result.burnedAmount, result.balanceAfter, result.asOf)).build();
             case NOT_FOUND:
                 return Response.status(Response.Status.NOT_FOUND).build();
             case GONE:

@@ -41,6 +41,13 @@ public final class EarnResult {
     public final List<ValuedLine> lines;
 
     /**
+     * The projection mode of this evaluation ({@link EarnResponse#MODE_CARD} |
+     * {@link EarnResponse#MODE_ANONYMOUS}); {@code CARD} unless the anonymous path
+     * set it (§20, RFP BO-03-03-28).
+     */
+    public String projectionMode = EarnResponse.MODE_CARD;
+
+    /**
      * The earn total after caps, euro at scale 2.
      */
     public BigDecimal total = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
@@ -50,6 +57,13 @@ public final class EarnResult {
      * clamped to zero, euro at scale 2 (§22.3).
      */
     public BigDecimal burnableBase = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+
+    /**
+     * The card balances read at projection time (RFP BO-03-03-31/-34), or null when
+     * no card was resolved (§20). Set by the resource, not the engine — only the
+     * {@code /earn} projection serves balances; the ingestion recalc does not.
+     */
+    public EarnResponse.Balances balances;
 
     /**
      * Builds a result carrying the valued lines it derives from.
@@ -67,11 +81,13 @@ public final class EarnResult {
      */
     public EarnResponse toResponse() {
         EarnResponse response = new EarnResponse();
+        response.projectionMode = projectionMode;
         response.total = total;
         response.entries = new ArrayList<>(entries);
         response.capsApplied = new ArrayList<>(capsApplied);
         response.burnableBase = burnableBase;
         response.warnings = new ArrayList<>(warnings);
+        response.balances = balances;
         return response;
     }
 }

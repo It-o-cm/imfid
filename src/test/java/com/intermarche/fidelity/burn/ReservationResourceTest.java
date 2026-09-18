@@ -180,16 +180,25 @@ class ReservationResourceTest {
 
     /**
      * A non-null confirmation body forwards its fiscal date (ternary true arm); an OK
-     * outcome maps to 200.
+     * outcome maps to 200 whose body echoes the ledger balances around the debit
+     * (RFP BO-03-03-34).
      */
     @Test
-    @DisplayName("confirm: non-null body forwards fiscalDate and OK yields 200")
+    @DisplayName("confirm: non-null body forwards fiscalDate and OK yields 200 with balances")
     void confirmWithBodyForwardsFiscalDateAndReturnsOk() {
         ReservationDtos.ConfirmRequest request = new ReservationDtos.ConfirmRequest();
         request.fiscalDate = FISCAL_DATE;
-        Mockito.when(service.confirm(eq(9L), eq(FISCAL_DATE))).thenReturn(ReservationService.ConfirmOutcome.OK);
+        java.time.LocalDateTime asOf = java.time.LocalDateTime.of(2026, 9, 17, 14, 2, 11);
+        Mockito.when(service.confirm(eq(9L), eq(FISCAL_DATE))).thenReturn(
+                new ReservationService.ConfirmResult(ReservationService.ConfirmOutcome.OK,
+                        new BigDecimal("42.30"), new BigDecimal("12.00"), new BigDecimal("30.30"), asOf));
         Response response = resource.confirm(9L, request);
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
+        ReservationDtos.ConfirmResponse body = (ReservationDtos.ConfirmResponse) response.getEntity();
+        assertEquals(new BigDecimal("42.30"), body.balanceBefore);
+        assertEquals(new BigDecimal("12.00"), body.burnedAmount);
+        assertEquals(new BigDecimal("30.30"), body.balanceAfter);
+        assertEquals(asOf, body.asOf);
         ArgumentCaptor<LocalDate> captor = ArgumentCaptor.forClass(LocalDate.class);
         Mockito.verify(service).confirm(eq(9L), captor.capture());
         assertEquals(FISCAL_DATE, captor.getValue());
@@ -202,7 +211,9 @@ class ReservationResourceTest {
     @Test
     @DisplayName("confirm: null body forwards null fiscalDate and OK yields 200")
     void confirmNullBodyForwardsNullFiscalDateAndReturnsOk() {
-        Mockito.when(service.confirm(eq(11L), isNull())).thenReturn(ReservationService.ConfirmOutcome.OK);
+        Mockito.when(service.confirm(eq(11L), isNull())).thenReturn(
+                new ReservationService.ConfirmResult(ReservationService.ConfirmOutcome.OK,
+                        BigDecimal.ONE, BigDecimal.ONE, BigDecimal.ZERO, java.time.LocalDateTime.now()));
         Response response = resource.confirm(11L, null);
         assertEquals(Response.Status.OK.getStatusCode(), response.getStatus());
         Mockito.verify(service).confirm(eq(11L), isNull());
@@ -214,7 +225,8 @@ class ReservationResourceTest {
     @Test
     @DisplayName("confirm: NOT_FOUND yields 404")
     void confirmNotFoundReturnsNotFound() {
-        Mockito.when(service.confirm(any(), any())).thenReturn(ReservationService.ConfirmOutcome.NOT_FOUND);
+        Mockito.when(service.confirm(any(), any()))
+                .thenReturn(ReservationService.ConfirmResult.of(ReservationService.ConfirmOutcome.NOT_FOUND));
         ReservationDtos.ConfirmRequest request = new ReservationDtos.ConfirmRequest();
         request.fiscalDate = FISCAL_DATE;
         Response response = resource.confirm(1L, request);
@@ -227,7 +239,8 @@ class ReservationResourceTest {
     @Test
     @DisplayName("confirm: GONE yields 410")
     void confirmGoneReturnsGone() {
-        Mockito.when(service.confirm(any(), any())).thenReturn(ReservationService.ConfirmOutcome.GONE);
+        Mockito.when(service.confirm(any(), any()))
+                .thenReturn(ReservationService.ConfirmResult.of(ReservationService.ConfirmOutcome.GONE));
         ReservationDtos.ConfirmRequest request = new ReservationDtos.ConfirmRequest();
         request.fiscalDate = FISCAL_DATE;
         Response response = resource.confirm(2L, request);

@@ -1,5 +1,6 @@
 package com.intermarche.fidelity.earn;
 
+import com.intermarche.fidelity.account.LedgerService;
 import com.intermarche.fidelity.domain.FidelityAccount;
 import com.intermarche.fidelity.domain.util.ProgramClock;
 import com.intermarche.fidelity.domain.AppUser;
@@ -55,6 +56,13 @@ public class EarnResource {
     ProgramClock clock;
 
     /**
+     * The ledger service, keeper of the balances the response echoes
+     * (RFP BO-03-03-31/-34).
+     */
+    @Inject
+    LedgerService ledger;
+
+    /**
      * Projects the earn of a valued basket for the presented card (§27.1).
      *
      * @param request The {@code /valuation} couple; must carry a valuation response.
@@ -78,9 +86,27 @@ public class EarnResource {
         }
 
         LocalDateTime evalDateTime = evaluationInstant(request.valuationRequest);
+        String mode = request.projectionMode == null || request.projectionMode.isBlank()
+                ? EarnResponse.MODE_CARD : request.projectionMode.trim();
+        if (EarnResponse.MODE_ANONYMOUS.equals(mode)) {
+            // No account is resolved or created (§20); card-independent rules only,
+            // nothing credited, no trace, no balances (RFP BO-03-03-28).
+            return Response.ok(engine.evaluateAnonymous(reading, evalDateTime).toResponse()).build();
+        }
+        if (!EarnResponse.MODE_CARD.equals(mode)) {
+            return Response.status(Response.Status.BAD_REQUEST)
+                    .entity(error("Unknown projectionMode '" + mode + "' (CARD | ANONYMOUS)")).build();
+        }
         FidelityAccount account = resolveAccount(request.valuationRequest);
 
         EarnResult result = engine.evaluate(reading, account, evalDateTime, true);
+        if (account != null) {
+            // The printed balance must come from the ledger keeper, never be recomputed
+            // by the POS (RFP BO-03-03-31/-34); the projection credits nothing (§30.2).
+            java.math.BigDecimal available = ledger.availableBalance(account);
+            result.balances = new EarnResponse.Balances(available,
+                    available.add(result.total).setScale(2, java.math.RoundingMode.HALF_UP), clock.now());
+        }
         return Response.ok(result.toResponse()).build();
     }
 

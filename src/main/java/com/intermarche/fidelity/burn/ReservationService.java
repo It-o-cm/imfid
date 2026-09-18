@@ -115,34 +115,46 @@ public class ReservationService {
     }
 
     /**
-     * Confirms a reservation into a BURN at the fiscal moment, idempotently (§27.3).
+     * Confirms a reservation into a BURN at the fiscal moment, idempotently (§27.3),
+     * and reports the ledger balances around the debit (RFP BO-03-03-34) — the
+     * printed balance must come from the ledger keeper, never be recomputed by the
+     * POS.
      *
      * @param id         The reservation id.
      * @param fiscalDate The fiscal date; the current program day when null.
-     * @return The confirmation outcome.
+     * @return The confirmation result: the outcome, and on a confirmation the
+     *         balances around the debit.
      */
     @Transactional
-    public ConfirmOutcome confirm(Long id, LocalDate fiscalDate) {
+    public ConfirmResult confirm(Long id, LocalDate fiscalDate) {
         FidelityReservation reservation = id == null ? null : FidelityReservation.findById(id);
         if (reservation == null) {
-            return ConfirmOutcome.NOT_FOUND;
+            return ConfirmResult.of(ConfirmOutcome.NOT_FOUND);
         }
         FidelityAccount account = ledger.lock(reservation.account.cardNumber);
         reservation = FidelityReservation.findById(id);
         if (reservation.state == ReservationState.CONFIRMED) {
-            return ConfirmOutcome.OK;
+            // Idempotent replay (§27.3): the burn is already in the ledger. The current
+            // balance is served; the before-figure is unknowable here (movements may
+            // have landed since) and stays null rather than being reconstructed.
+            return new ConfirmResult(ConfirmOutcome.OK, null, reservation.amount,
+                    account.balance, clock.now());
         }
         if (reservation.state != ReservationState.ACTIVE || reservation.isExpiredAt(clock.now())) {
             // Expired or already terminal: the synchronous path answers 410 (§27.3); the
             // ingestion path confirms anyway (§29.2).
-            return ConfirmOutcome.GONE;
+            return ConfirmResult.of(ConfirmOutcome.GONE);
         }
         LocalDate date = fiscalDate != null ? fiscalDate : clock.today();
+        BigDecimal balanceBefore = account.balance;
         ledger.post(account, MovementType.BURN, reservation.amount.negate(), date,
                 null, reservation.ticketRef, List.of(), null);
         reservation.state = ReservationState.CONFIRMED;
         reservation.persist();
-        return ConfirmOutcome.OK;
+        // ledger.post refreshed the denormalized balance (§14): account.balance is now
+        // the post-debit figure.
+        return new ConfirmResult(ConfirmOutcome.OK, balanceBefore, reservation.amount,
+                account.balance, clock.now());
     }
 
     /**
@@ -271,6 +283,70 @@ public class ReservationService {
          */
         static ReserveOutcome rejected(String reason) {
             return new ReserveOutcome(Status.REJECTED, null, reason);
+        }
+    }
+
+    /**
+     * The result of a confirmation (§27.3): the outcome, and — when the outcome is
+     * {@link ConfirmOutcome#OK} — the ledger balances around the debit
+     * (RFP BO-03-03-34).
+     */
+    public static final class ConfirmResult {
+
+        /**
+         * The confirmation outcome.
+         */
+        public final ConfirmOutcome outcome;
+
+        /**
+         * The balance before the debit, euro at scale 2; null on an idempotent
+         * replay (the figure is unknowable then) and on a non-OK outcome.
+         */
+        public final BigDecimal balanceBefore;
+
+        /**
+         * The burned amount, euro at scale 2; null on a non-OK outcome.
+         */
+        public final BigDecimal burnedAmount;
+
+        /**
+         * The balance after the debit, read from the refreshed ledger (§14); null
+         * on a non-OK outcome.
+         */
+        public final BigDecimal balanceAfter;
+
+        /**
+         * The program instant the figures were read at (§30.3); null on a non-OK
+         * outcome.
+         */
+        public final java.time.LocalDateTime asOf;
+
+        /**
+         * Builds a confirmation result.
+         *
+         * @param outcome       The outcome.
+         * @param balanceBefore The balance before the debit, or null.
+         * @param burnedAmount  The burned amount, or null.
+         * @param balanceAfter  The balance after the debit, or null.
+         * @param asOf          The read instant, or null.
+         */
+        ConfirmResult(ConfirmOutcome outcome, BigDecimal balanceBefore, BigDecimal burnedAmount,
+                      BigDecimal balanceAfter, java.time.LocalDateTime asOf) {
+            this.outcome = outcome;
+            this.balanceBefore = balanceBefore;
+            this.burnedAmount = burnedAmount;
+            this.balanceAfter = balanceAfter;
+            this.asOf = asOf;
+        }
+
+        /**
+         * Builds a balance-less result for a non-OK outcome.
+         *
+         * @param outcome The outcome.
+         * @return The result, never null.
+         */
+        static ConfirmResult of(ConfirmOutcome outcome) {
+            return new ConfirmResult(outcome, null, null, null, null);
         }
     }
 

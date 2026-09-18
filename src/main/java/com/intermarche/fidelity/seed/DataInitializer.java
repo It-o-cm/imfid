@@ -1,6 +1,8 @@
 package com.intermarche.fidelity.seed;
 
 import com.intermarche.fidelity.domain.AccountStatus;
+import com.intermarche.fidelity.domain.AdvantageCategory;
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.BatchRunLog;
 import com.intermarche.fidelity.domain.CardHolder;
 import com.intermarche.fidelity.domain.EarnTrace;
@@ -115,6 +117,46 @@ public class DataInitializer {
     private static final String CARD_VOIDED = "2990000000095";
 
     /**
+     * Seeds the advantage referentials the ticket grouping relies on
+     * (RFP BO-03-03-25/-33): the closed PRODUCT/TICKET type nomenclature with its
+     * display order, and two demo categories.
+     */
+    private void loadAdvantageReferentials() {
+        createAdvantageType("PRODUCT", "Vos avantages produits", 10);
+        createAdvantageType("TICKET", "Vos avantages ticket", 20);
+        createAdvantageCategory("FRAIS", "Produits frais");
+        createAdvantageCategory("MDD", "Marques du magasin");
+    }
+
+    /**
+     * Creates and persists an advantage type of the closed nomenclature.
+     *
+     * @param code         the nomenclature code
+     * @param label        the printable group label
+     * @param displayOrder the order of the group on the ticket
+     */
+    private void createAdvantageType(String code, String label, int displayOrder) {
+        AdvantageType type = new AdvantageType();
+        type.code = code;
+        type.label = label;
+        type.displayOrder = displayOrder;
+        type.persist();
+    }
+
+    /**
+     * Creates and persists an advantage category.
+     *
+     * @param code  the category code
+     * @param label the printable category label
+     */
+    private void createAdvantageCategory(String code, String label) {
+        AdvantageCategory category = new AdvantageCategory();
+        category.code = code;
+        category.label = label;
+        category.persist();
+    }
+
+    /**
      * Wipes and reloads the loyalty tables at startup (dev/test only).
      * <p>
      * Runs at priority 2700, after the rule registry (default 2500) has deployed the
@@ -161,6 +203,8 @@ public class DataInitializer {
         FidelityAccount.deleteAll();
         FidelityRuleTier.deleteAll();
         FidelityRule.deleteAll();
+        AdvantageType.deleteAll();
+        AdvantageCategory.deleteAll();
         FidelityCommunity.deleteAll();
         ProductFamily.deleteAll();
         Product.deleteAll();
@@ -373,6 +417,7 @@ public class DataInitializer {
                 LocalDateTime.of(2026, 1, 1, 0, 0), null, 110, true, "10.00",
                 "{\"dayOfMonth\":28,\"communityCode\":\"STUDENTS\","
                         + "\"scope\":{\"include\":{\"families\":[\"HYGIENE_FEM\"]}},\"rate\":0.40}");
+        loadAdvantageReferentials();
         createRule("CGU_EXCLUSION", FidelityRule.TYPE_PROGRAM_EXCLUSION,
                 "Exclusions du programme (CGU)",
                 LocalDateTime.of(2026, 1, 1, 0, 0), null, 1000, false, null,
@@ -644,6 +689,9 @@ public class DataInitializer {
         FidelityRule rule = new FidelityRule();
         rule.code = code;
         rule.type = type;
+        // Every demo crediting rule prints under the PRODUCT advantage group
+        // (RFP BO-03-03-25); the exclusion rule carries none.
+        rule.advantageType = FidelityRule.TYPE_PROGRAM_EXCLUSION.equals(type) ? null : "PRODUCT";
         rule.label = label;
         rule.validFrom = validFrom;
         rule.validTo = validTo;

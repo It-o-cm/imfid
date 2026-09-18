@@ -17,6 +17,25 @@ import java.util.List;
 public class EarnResponse {
 
     /**
+     * The nominal projection mode: the presented card's context joins the evaluation
+     * (§15, §27.1).
+     */
+    public static final String MODE_CARD = "CARD";
+
+    /**
+     * The anonymous projection mode — "had you carried the card" (§20,
+     * RFP BO-03-03-28): card-independent rules only, nothing credited, no trace.
+     */
+    public static final String MODE_ANONYMOUS = "ANONYMOUS";
+
+    /**
+     * The projection mode of this response, echoing the request's (closed
+     * nomenclature {@link #MODE_CARD} | {@link #MODE_ANONYMOUS}); {@code CARD} when
+     * the request carried none.
+     */
+    public String projectionMode = MODE_CARD;
+
+    /**
      * The earn total = Σ of the {@link #entries} amounts after caps, euro at scale 2.
      */
     public BigDecimal total = BigDecimal.ZERO;
@@ -44,6 +63,57 @@ public class EarnResponse {
      * (§31.2).
      */
     public List<Warning> warnings = new ArrayList<>();
+
+    /**
+     * The card balances at projection time (RFP BO-03-03-31/-34): the available
+     * balance and its projection after this earn — a projection credits nothing
+     * (§15, §30.2). Null when no card was resolved (§20).
+     */
+    public Balances balances;
+
+    /**
+     * The transaction balances block (RFP BO-03-03-31/-34) — figures read from the
+     * ledger keeper, never recomputed by the POS.
+     */
+    public static class Balances {
+
+        /**
+         * The available balance = balance − active reservations (I11, §27.2), euro
+         * at scale 2.
+         */
+        public BigDecimal available;
+
+        /**
+         * The available balance projected after this earn ({@code available +
+         * total}); a projection, it credits nothing (§15, §30.2) — the actual
+         * credit happens at ingestion.
+         */
+        public BigDecimal projectedAfterEarn;
+
+        /**
+         * The program instant the figures were read at (§30.3).
+         */
+        public java.time.LocalDateTime asOf;
+
+        /**
+         * Builds a balances block.
+         *
+         * @param available          The available balance.
+         * @param projectedAfterEarn The projection after this earn.
+         * @param asOf               The read instant.
+         */
+        public Balances(BigDecimal available, BigDecimal projectedAfterEarn, java.time.LocalDateTime asOf) {
+            this.available = available;
+            this.projectedAfterEarn = projectedAfterEarn;
+            this.asOf = asOf;
+        }
+
+        /**
+         * Default constructor for Jackson.
+         */
+        public Balances() {
+        }
+    }
 
     /**
      * One per-rule earn entry (§27.1).
@@ -74,6 +144,36 @@ public class EarnResponse {
          * The ids of the lines that fed the assiette (§16, §29.4). Never null (§31.2).
          */
         public List<String> lineIds = new ArrayList<>();
+
+        /**
+         * The advantage-type code the POS groups this entry under on the ticket
+         * (closed nomenclature, RFP BO-03-03-25); always served on a crediting entry.
+         */
+        public String advantageType;
+
+        /**
+         * The printable label of the advantage-type group ("Vos avantages produits");
+         * the POS prints it, never translates a code (§18).
+         */
+        public String advantageTypeLabel;
+
+        /**
+         * The administered order of the advantage-type group on the ticket
+         * (RFP BO-03-03-25); always served on a crediting entry.
+         */
+        public Integer advantageTypeOrder;
+
+        /**
+         * The advantage-category code (RFP BO-03-03-33), or null when the rule
+         * carries none.
+         */
+        public String advantageCategory;
+
+        /**
+         * The printable advantage-category label, or null when the rule carries no
+         * category.
+         */
+        public String advantageCategoryLabel;
 
         /**
          * Builds an entry from an internal earn entry and its post-cap amount.

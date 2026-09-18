@@ -181,4 +181,14 @@ class TicketThresholdEarnApplier extends AbstractEarnRuleApplier {
         }
         return value.decimalValue();
     }
+    /**
+     * Opts into the anonymous projection (§20, RFP BO-03-03-28): the mechanic depends
+     * on the ticket's eligible assiette alone.
+     *
+     * @return true.
+     */
+    @Override
+    public boolean appliesAnonymously() {
+        return true;
+    }
 }

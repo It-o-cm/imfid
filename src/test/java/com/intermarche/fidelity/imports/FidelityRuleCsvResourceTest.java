@@ -6,11 +6,13 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.intermarche.fidelity.domain.AdvantageType;
 import com.intermarche.fidelity.domain.FidelityRule;
 import com.intermarche.fidelity.imports.ImporterCsvResource.LineData;
 import com.intermarche.fidelity.rule.EarnRuleRegistry;
 import io.quarkus.hibernate.orm.panache.Panache;
 import io.quarkus.hibernate.orm.panache.PanacheEntityBase;
+import io.quarkus.hibernate.orm.panache.PanacheQuery;
 import jakarta.persistence.EntityManager;
 import jakarta.ws.rs.core.Response;
 import java.io.ByteArrayInputStream;
@@ -70,7 +72,7 @@ class FidelityRuleCsvResourceTest {
     /**
      * Header names of the fixture rows, in cell order.
      */
-    private static final String[] TEST_HEADER = {"CODE", "TYPE", "LABEL", "VALID_FROM", "VALID_TO", "PRIORITY", "EXCLUSIVE", "MONTHLY_CAP_PER_CARD", "ACTIVE", "SPECIFICATION"};
+    private static final String[] TEST_HEADER = {"CODE", "TYPE", "LABEL", "VALID_FROM", "VALID_TO", "PRIORITY", "EXCLUSIVE", "MONTHLY_CAP_PER_CARD", "ACTIVE", "ADVANTAGE_TYPE", "ADVANTAGE_CATEGORY", "SPECIFICATION"};
 
     /**
      * Builds a header-bound CSV row from positional fixture cells: the header
@@ -89,13 +91,27 @@ class FidelityRuleCsvResourceTest {
     }
 
     /**
-     * Builds a nominal ten-column rule row with a deployed type and a valid window.
+     * Builds a nominal twelve-column rule row with a deployed type, a valid window and
+     * the mandatory PRODUCT advantage type (RFP BO-03-03-25).
      *
-     * @return The row {@code BRAND01|BRAND_TIERED_EARN|Brand boost|from|to|5|true|50.00|true|spec}.
+     * @return The row {@code BRAND01|BRAND_TIERED_EARN|Brand boost|from|to|5|true|50.00|true|PRODUCT||spec}.
      */
     private LineData ruleLine() {
         return line("BRAND01", TYPE, "Brand boost", "2026-01-01T00:00", "2026-12-31T00:00",
-                "5", "true", "50.00", "true", "{\"rate\":0.05}");
+                "5", "true", "50.00", "true", "PRODUCT", "", "{\"rate\":0.05}");
+    }
+
+    /**
+     * Wraps the PRODUCT advantage type in a {@link PanacheQuery} mock, stubbed onto the
+     * referential lookup of {@code feedRule} (RFP BO-03-03-25).
+     *
+     * @return The query mock resolving to an {@link AdvantageType}.
+     */
+    private PanacheQuery<?> advantageQuery() {
+        PanacheQuery<?> query = Mockito.mock(PanacheQuery.class,
+                invocation -> "firstResult".equals(invocation.getMethod().getName())
+                        ? new AdvantageType() : Mockito.RETURNS_DEFAULTS.answer(invocation));
+        return query;
     }
 
     /**
@@ -151,7 +167,7 @@ class FidelityRuleCsvResourceTest {
     @DisplayName("importRules(): a header-only stream yields an empty report")
     void importRulesHeaderOnly() {
         InputStream in = new ByteArrayInputStream(
-                ("CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|SPECIFICATION\n")
+                ("CODE|TYPE|LABEL|VALID_FROM|VALID_TO|PRIORITY|EXCLUSIVE|MONTHLY_CAP_PER_CARD|ACTIVE|ADVANTAGE_TYPE|ADVANTAGE_CATEGORY|SPECIFICATION\n")
                         .getBytes(StandardCharsets.UTF_8));
         Response response = resource.importRules(in);
         assertEquals(200, response.getStatus());
@@ -254,7 +270,7 @@ class FidelityRuleCsvResourceTest {
     void validateRuleMissingType() {
         resource.registry = Mockito.mock(EarnRuleRegistry.class);
         LineData data = line("BRAND01", "", "Brand boost", "2026-01-01T00:00", "2026-12-31T00:00",
-                "5", "true", "50.00", "true", "{\"rate\":0.05}");
+                "5", "true", "50.00", "true", "PRODUCT", "", "{\"rate\":0.05}");
         int[] counters = {0, 0};
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> resource.processLineLogic(data, new HashMap<>(), counters));
@@ -273,7 +289,7 @@ class FidelityRuleCsvResourceTest {
         Mockito.when(reg.hasFactory("MYSTERY")).thenReturn(false);
         resource.registry = reg;
         LineData data = line("BRAND01", "MYSTERY", "Brand boost", "2026-01-01T00:00", "2026-12-31T00:00",
-                "5", "true", "50.00", "true", "{\"rate\":0.05}");
+                "5", "true", "50.00", "true", "PRODUCT", "", "{\"rate\":0.05}");
         int[] counters = {0, 0};
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> resource.processLineLogic(data, new HashMap<>(), counters));
@@ -316,8 +332,10 @@ class FidelityRuleCsvResourceTest {
         int[] counters = {0, 0};
         EntityManager em = Mockito.mock(EntityManager.class);
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
-        try (MockedStatic<Panache> pan = Mockito.mockStatic(Panache.class)) {
+        try (MockedStatic<Panache> pan = Mockito.mockStatic(Panache.class);
+             MockedStatic<PanacheEntityBase> base = Mockito.mockStatic(PanacheEntityBase.class)) {
             pan.when(Panache::getEntityManager).thenReturn(em);
+            base.when(() -> PanacheEntityBase.find("code", "PRODUCT")).thenReturn(advantageQuery());
             resource.processLineLogic(ruleLine(), new HashMap<>(), counters);
             assertEquals(1, counters[0]);
             assertEquals(0, counters[1]);
@@ -348,9 +366,11 @@ class FidelityRuleCsvResourceTest {
         int[] counters = {0, 0};
         EntityManager em = Mockito.mock(EntityManager.class);
         ArgumentCaptor<Object> captor = ArgumentCaptor.forClass(Object.class);
-        LineData data = line("BRAND02", TYPE, "Plain", "2026-01-01T00:00", "", "", "", "", "", "{}");
-        try (MockedStatic<Panache> pan = Mockito.mockStatic(Panache.class)) {
+        LineData data = line("BRAND02", TYPE, "Plain", "2026-01-01T00:00", "", "", "", "", "", "PRODUCT", "", "{}");
+        try (MockedStatic<Panache> pan = Mockito.mockStatic(Panache.class);
+             MockedStatic<PanacheEntityBase> base = Mockito.mockStatic(PanacheEntityBase.class)) {
             pan.when(Panache::getEntityManager).thenReturn(em);
+            base.when(() -> PanacheEntityBase.find("code", "PRODUCT")).thenReturn(advantageQuery());
             resource.processLineLogic(data, new HashMap<>(), counters);
             assertEquals(1, counters[0]);
             Mockito.verify(em).persist(captor.capture());
@@ -373,7 +393,7 @@ class FidelityRuleCsvResourceTest {
         resource.registry = acceptingRegistry();
         int[] counters = {0, 0};
         LineData data = line("BRAND03", TYPE, "Plain", "", "2026-12-31T00:00",
-                "5", "true", "50.00", "true", "{}");
+                "5", "true", "50.00", "true", "PRODUCT", "", "{}");
         IllegalArgumentException ex = assertThrows(IllegalArgumentException.class,
                 () -> resource.processLineLogic(data, new HashMap<>(), counters));
         assertEquals("missing or malformed validFrom (ISO date-time)", ex.getMessage());
@@ -401,6 +421,7 @@ class FidelityRuleCsvResourceTest {
         int[] counters = {0, 0};
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(5L)).thenReturn(reread);
+            panache.when(() -> PanacheEntityBase.find("code", "PRODUCT")).thenReturn(advantageQuery());
             resource.processLineLogic(ruleLine(), map, counters);
             assertEquals(0, counters[0]);
             assertEquals(1, counters[1]);
@@ -430,6 +451,7 @@ class FidelityRuleCsvResourceTest {
         int[] counters = {0, 0};
         try (MockedStatic<PanacheEntityBase> panache = Mockito.mockStatic(PanacheEntityBase.class)) {
             panache.when(() -> PanacheEntityBase.findById(7L)).thenReturn(reread);
+            panache.when(() -> PanacheEntityBase.find("code", "PRODUCT")).thenReturn(advantageQuery());
             resource.processLineLogic(data, map, counters);
             assertEquals(0, counters[0]);
             assertEquals(1, counters[1]);
@@ -566,9 +588,9 @@ class FidelityRuleCsvResourceTest {
     @DisplayName("computeIncomingChecksum(): a blank priority hashes as an explicit 0")
     void priorityOfBlankHashesAsZero() {
         LineData blank = line("BRAND01", TYPE, "L", "2026-01-01T00:00", "2026-12-31T00:00",
-                "", "true", "50.00", "true", "{\"rate\":0.05}");
+                "", "true", "50.00", "true", "PRODUCT", "", "{\"rate\":0.05}");
         LineData zero = line("BRAND01", TYPE, "L", "2026-01-01T00:00", "2026-12-31T00:00",
-                "0", "true", "50.00", "true", "{\"rate\":0.05}");
+                "0", "true", "50.00", "true", "PRODUCT", "", "{\"rate\":0.05}");
         assertEquals(incomingChecksum(zero), incomingChecksum(blank));
     }
 }

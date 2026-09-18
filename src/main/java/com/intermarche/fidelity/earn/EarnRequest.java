@@ -21,4 +21,12 @@ public class EarnRequest {
      * The {@code /valuation} response (offers, advantages, totals) (§22).
      */
     public ValuationResponse valuationResponse;
+
+    /**
+     * The requested projection mode (closed nomenclature {@code CARD} |
+     * {@code ANONYMOUS}, §20, RFP BO-03-03-28); absent or blank reads as
+     * {@code CARD} — the behaviour of a request that never carried the field is
+     * unchanged.
+     */
+    public String projectionMode;
 }

@@ -83,6 +83,57 @@ public final class ReservationDtos {
     }
 
     /**
+     * The body of a 200 confirmation (RFP BO-03-03-34): the ledger balances around
+     * the debit, so the POS prints the new balance from the ledger keeper instead
+     * of recomputing it.
+     */
+    public static class ConfirmResponse {
+
+        /**
+         * The balance before the debit, euro at scale 2; null on an idempotent
+         * replay.
+         */
+        public java.math.BigDecimal balanceBefore;
+
+        /**
+         * The burned amount, euro at scale 2.
+         */
+        public java.math.BigDecimal burnedAmount;
+
+        /**
+         * The balance after the debit, read from the refreshed ledger (§14).
+         */
+        public java.math.BigDecimal balanceAfter;
+
+        /**
+         * The program instant the figures were read at (§30.3).
+         */
+        public java.time.LocalDateTime asOf;
+
+        /**
+         * Builds a confirmation body.
+         *
+         * @param balanceBefore The balance before the debit, or null.
+         * @param burnedAmount  The burned amount.
+         * @param balanceAfter  The balance after the debit.
+         * @param asOf          The read instant.
+         */
+        public ConfirmResponse(java.math.BigDecimal balanceBefore, java.math.BigDecimal burnedAmount,
+                               java.math.BigDecimal balanceAfter, java.time.LocalDateTime asOf) {
+            this.balanceBefore = balanceBefore;
+            this.burnedAmount = burnedAmount;
+            this.balanceAfter = balanceAfter;
+            this.asOf = asOf;
+        }
+
+        /**
+         * Default constructor for Jackson.
+         */
+        public ConfirmResponse() {
+        }
+    }
+
+    /**
      * The typed 422 body of a rejected reservation (§25.2, §27.3): the closed
      * {@code reason} nomenclature.
      */
